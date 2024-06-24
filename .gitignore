@@ -1,0 +1,9 @@
+idea/*
+cmake-build-debug/*
+tests/*
+CMakeLists.txt
+*.collapsed
+
+*.xml
+*.iml
+
