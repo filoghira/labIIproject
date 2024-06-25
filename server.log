@@ -1,0 +1,6 @@
+INFO:server.log:Ricevuto grafo di 9 nodi
+INFO:server.log:Nome del file temporaneo: /tmp/tmpsvcs6wg7.mtx
+INFO:server.log:Archi scartati: 4
+INFO:server.log:Archi validi: 17
+INFO:server.log:Processo terminato con codice 0
+INFO:server.log:stdout: None

@@ -298,8 +298,14 @@ void* thread_read(void *arg){
 
         // fprintf(stderr, "Thread %ld waiting for graph\n", pthread_self());
 
+        if (!valid_arc(new->node, curr->j, data->g->N))
+        {
+            free (new);
+            exit(1);
+        }
+
         // Controllo se l'arco è valido e se non è duplicato
-        if(valid_arc(new->node, curr->j, data->g->N) && !check_duplicate(data->g->in[curr->j], new->node)){
+        if(!check_duplicate(data->g->in[curr->j], new->node)){
 
             // Aspetto che il grafo sia disponibile
             sem_wait(data->mutex_graph);
