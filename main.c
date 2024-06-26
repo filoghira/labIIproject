@@ -326,7 +326,7 @@ int main(const int argc, char *argv[]){
         sum += res[i];
 
     // Stampo i risultati finali
-    output_print_end(numiter, sum, data->k, map_res, true);
+    output_print_end(numiter, sum, data->k, map_res);
 
     // Libero la memoria
     free(map_res);

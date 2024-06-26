@@ -5,6 +5,6 @@
 #include <stdio.h>
 
 void output_print_start(int n, int dead_end, int arcs);
-void output_print_end(int n, double sum, int k, const map *pagerank, bool conv);
+void output_print_end(int n, double sum, int k, const map *pagerank);
 
 #endif

@@ -8,13 +8,9 @@ void output_print_start(const int n, const int dead_end, const int arcs){
 }
 
 // Funzione che stampa i risultati finali dopo il calcolo del pagerank
-void output_print_end(const int n, const double sum, const int k, const map *pagerank, const bool conv){
-    printf("Did ");
-    if(!conv){
-        printf("not ");
-    }
-    printf("converge after %d iterations\n", n);
-    printf("Sum of ranks: %.4lf\n", sum);
+void output_print_end(const int n, const double sum, const int k, const map *pagerank){
+    printf("Converged after %d iterations\n", n);
+    printf("Sum of ranks: %.4lf   (should be 1)\n", sum);
     printf("Top %d nodes:\n", k);
 
     if (pagerank == NULL)
