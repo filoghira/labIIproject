@@ -94,20 +94,8 @@ double* pagerank(grafo *g, double d, double eps, int maxiter, int taux, int* num
     sem_t mutex_buffer;
     sem_init(&mutex_buffer, 0, 1);
 
-    sem_t mutex_X;
-    sem_init(&mutex_X, 0, 1);
-
-    sem_t mutex_Y;
-    sem_init(&mutex_Y, 0, 1);
-
-    sem_t mutex_Xnew;
-    sem_init(&mutex_Xnew, 0, 1);
-
     sem_t mutex_S;
     sem_init(&mutex_S, 0, 1);
-
-    sem_t sem_g;
-    sem_init(&sem_g, 0, 1);
 
     sem_t mutex_iter;
     sem_init(&mutex_iter, 0, 1);
@@ -120,17 +108,13 @@ double* pagerank(grafo *g, double d, double eps, int maxiter, int taux, int* num
     data.mutex_buffer = &mutex_buffer;
     data.sem_buffer = &sem_buffer;
     data.X = X;
-    data.mutex_X = &mutex_X;
     data.Y = Y;
-    data.mutex_Y = &mutex_Y;
     data.Xnew = Xnew;
-    data.mutex_Xnew = &mutex_Xnew;
     data.S = 0;
     data.mutex_S = &mutex_S;
     data.err = 0;
     data.mutex_err = &mutex_err;
     data.g = g;
-    data.sem_g = &sem_g;
     data.d = d;
     data.current_iter = 0;
     data.mutex_iter = &mutex_iter;
@@ -266,6 +250,13 @@ double* pagerank(grafo *g, double d, double eps, int maxiter, int taux, int* num
     free(data.buffer);
     free(data.Y);
     free(data.Xnew);
+
+    sem_destroy(&sem_calc);
+    sem_destroy(&mutex_err);
+    sem_destroy(&sem_buffer);
+    sem_destroy(&mutex_buffer);
+    sem_destroy(&mutex_S);
+    sem_destroy(&mutex_iter);
 
     // Restituisco il vettore dei pagerank
     return X;

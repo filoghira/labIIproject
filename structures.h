@@ -80,18 +80,10 @@ typedef struct
 
     // Vettore dei pagerank
     double *X;
-    // Mutex per il vettore dei pagerank
-    sem_t *mutex_X;
-
     // Vettore Y ausiliario
     double *Y;
-    // Mutex per il vettore Y
-    sem_t *mutex_Y;
-
     // Vettore dei nuovi pagerank
     double *Xnew;
-    // Mutex per il vettore dei nuovi pagerank
-    sem_t *mutex_Xnew;
 
     // Somma dei pagerank dei nodi senza archi uscenti
     double S;
@@ -105,8 +97,6 @@ typedef struct
 
     // Grafo
     grafo *g;
-    // Mutex per il grafo
-    sem_t *sem_g;
 
     // Damping factor
     double d;
