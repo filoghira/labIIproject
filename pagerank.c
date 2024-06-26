@@ -52,7 +52,7 @@ void* thread_pagerank(void *arg){
                 // Decremento il numero di operazioni da eseguire
                 sem_post(data->sem_calc);
                 break;
-                // Calcolo il nuovo pagerank
+            // Calcolo il nuovo pagerank
             case 2:
                 // Calcolo la somma dei pagerank dei nodi entranti
                 double sum = 0;
@@ -72,7 +72,7 @@ void* thread_pagerank(void *arg){
                 // Calcolo l'errore
             case 3:
                 // Calcolo l'errore
-                const double temp = fabs(data->Xnew[new->j] - data->X[new->j]);
+                double temp = fabs(data->Xnew[new->j] - data->X[new->j]);
 
                 // Attendo che l'errore sia disponibile
                 sem_wait(data->mutex_err);

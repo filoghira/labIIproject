@@ -222,7 +222,7 @@ double* pagerank(grafo *g, double d, double eps, int maxiter, int taux, int* num
 
             // Aggiungo il nodo al buffer
             E->next = temp_buffer;
-            data.buffer = E;
+            temp_buffer = E;
         }
 
         // Aggiorno il buffer
