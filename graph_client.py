@@ -3,9 +3,15 @@ import argparse
 import concurrent.futures
 import logging
 import socket
+import os.path
 
+# Indirizzo e porta del server
 HOST = "127.0.0.1"
 PORT = 54829
+
+# Configuro il logger
+logging.basicConfig(level=logging.INFO, filename="client.log", filemode="w")
+log = logging.getLogger("graph_client")
 
 
 # Funzione per ricevere n byte
@@ -21,76 +27,92 @@ def receive_bytes(conn, n):
     return chunks
 
 
-def connection_handler(conn, file, log):
-    data = open(file, "rb").read()
+# Funzione per la gestione della connessione (thread)
+def connection_handler(file):
+    # Creo la connessione
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as conn:
+        # Mi connetto al server
+        conn.connect((HOST, PORT))
+        data = open(file, "rb").read()
 
-    # Invio la lunghezza del file
-    conn.sendall(len(data).to_bytes(4, byteorder="big"))
+        # Elimino i commenti che iniziano con %
+        data = data.split(b"\n")
+        data = [line for line in data if not line.startswith(b"%")]
 
-    # Elimino i commenti che iniziano con %
-    data = data.split(b"\n")
-    data = [line for line in data if not line.startswith(b"%")]
+        # Prelevo il numero di nodi e di archi dalla prima riga
+        n1, n2, a = map(int, data[0].split())
+        data = data[1:]
+        n = n1
 
-    # Prelevo il numero di nodi e di archi dalla prima riga
-    n1, n2, a = map(int, data[0].split())
-    data = data[1:]
+        # Invio il numero di nodi e di archi
+        conn.sendall(n.to_bytes(4, byteorder="big"))
+        conn.sendall(a.to_bytes(4, byteorder="big"))
 
-    n = n1 if n1 == n2 else -1
-    if n == -1:
-        print(f"{file} Errore: il grafo non è orientato")
-        return
+        # Invio il file riga per riga
+        for line in data:
+            # Controllo se la riga è vuota
+            if line == b'':
+                continue
+            i, j = map(int, line.split(b' '))
+            conn.sendall(i.to_bytes(4, byteorder="big"))
+            conn.sendall(j.to_bytes(4, byteorder="big"))
 
-    conn.sendall(n.to_bytes(4, byteorder="big"))
-    conn.sendall(a.to_bytes(4, byteorder="big"))
+        # Ricevo il codice di exit dal server
+        data = receive_bytes(conn, 4)
+        code = int.from_bytes(data, byteorder="big")
 
-    # Invio il file
-    for line in data:
-        # Controllo se la riga è vuota
-        if line == b'':
-            continue
-        i, j = map(int, line.split(b' '))
-        conn.sendall(i.to_bytes(4, byteorder="big"))
-        conn.sendall(j.to_bytes(4, byteorder="big"))
-
-    # Ricevo il codice di errore
-    data = receive_bytes(conn, 4)
-    code = int.from_bytes(data, byteorder="big")
-
-    print(f"{file} Exit code: {code}")
-
-    if code != 0:
+        # Stampo il codice di exit
         print(f"{file} Exit code: {code}")
-        return
+        # Se non è 0, termino
+        if code != 0:
+            return
 
-    # Ricevo stdout
-    data = receive_bytes(conn, 1024)
-    text = data.decode("utf-8")
-    lines = text.split("\n")
-    for line in lines:
-        print(f"{file} {line}")
+        # Ricevo il risultato del calcolo (stdout)
+        size = int.from_bytes(receive_bytes(conn, 4), byteorder="big")
+        data = receive_bytes(conn, size)
+        # Lo decodifico e lo stampo
+        text = data.decode("utf-8")
+        lines = text.split("\n")
+        for line in lines:
+            print(f"{file} {line}")
 
-    print("Bye")
+        print("Bye")
 
 
 def main(files):
-    log = logging.getLogger("server.log")
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as conn:
-        futures = []
-        for file in files:
-            conn.connect((HOST, PORT))
-            with concurrent.futures.ThreadPoolExecutor() as executor:
-                futures.append(executor.submit(connection_handler, conn, file, log))
+    # Lista dei futures per la gestione concorrente
+    futures = []
 
-            concurrent.futures.wait(futures)
+    # Creo un pool di thread
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        # Per ogni file nella lista
+        for file in files:
+            # Avvio il thread per la connessione
+            futures.append(executor.submit(connection_handler, file))
+
+        # Attendo la terminazione di tutti i thread
+        concurrent.futures.wait(futures)
+
+
+# Funzione per controllare che il file abbia una delle estensioni specificate
+def file_choices(choices, fname):
+    ext = os.path.splitext(fname)[1][1:]
+    if ext not in choices:
+        log.error("file doesn't end with one of {}".format(choices))
+    return fname
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO, filename="server.log", filemode="w")
+    # Creo il parser degli argomenti
     parser = argparse.ArgumentParser(description="Client per il server di grafi",
                                      formatter_class=argparse.RawTextHelpFormatter)
 
     # Aggiungo come argomento la lista dei file
-    parser.add_argument("files", metavar="file", type=str, nargs="+", help="Lista dei file da inviare al server")
+    parser.add_argument("files", metavar="file", type=lambda s: file_choices("mtx", s), nargs="+",
+                        help="Lista dei file da inviare al server")
 
+    # Eseguo il parsing degli argomenti
     args = parser.parse_args()
+
+    # Eseguo il client
     main(args.files)

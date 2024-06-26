@@ -2,12 +2,23 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <ctype.h>
+#include <errno.h>
 #include <stdbool.h>
 #include <pthread.h>
 #include <semaphore.h>
 #include <math.h>
 #include <sys/time.h>
 #include <signal.h>
+#include <string.h>
+
+static void termina(const char *messaggio)
+{
+    if(errno==0)
+        fprintf(stderr,"%s\n",messaggio);
+    else
+        perror(messaggio);
+    exit(1);
+}
 
 // Variabili per il calcolo del tempo
 struct timeval t0, t1, dt;
@@ -192,17 +203,20 @@ input_data* input(const int argc, char *argv[]){
                 exit(1);
             default:
                 fprintf(stderr, "Unexpected error");
-                exit(1);
+                termina("Errore nella lettura dei parametri forniti");
         }
     }
 
     // Se il numero degli argomenti passati è maggiore di optind, allora c'è il nome del file di input
     if(optind < argc){
+        // Controllo il formato del file
+        const char* extension = strrchr(argv[optind], '.');
+        if (strcmp(extension, ".mtx") != 0)
+            termina("Formato del file non valido");
         data->filename = argv[optind];
     } else {
         // Altrimenti non è stato passato il nome del file di input
-        fprintf(stderr, "Expected the name of the input file.\n");
-        return NULL;
+        termina("File di input non fornito");
     }
 
     // Restituisco la struttura con i dati in input
@@ -210,7 +224,7 @@ input_data* input(const int argc, char *argv[]){
 }
 
 // Funzione che stampa i risultati iniziali dopo la lettura del file di input
-void output_print_start(int n, int dead_end, int arcs){
+void output_print_start(const int n, const int dead_end, const int arcs){
     printf("Number of nodes: %d\n", n);
     printf("Number of dead-ends nodes: %d\n", dead_end);
     printf("Number of valid arcs: %d\n", arcs);
@@ -238,7 +252,7 @@ void output_print_end(const int n, const double sum, const int k, const map *pag
 
 // Funzione che controlla se un arco è valido
 bool valid_arc(const int i, const int j, const int N){
-    return i >= 0 && i < N && j >= 0 && j < N && i != j;
+    return i >= 0 && i < N && j >= 0 && j < N;
 }
 
 // Funzione che controlla se un nodo è già presente nella lista degli archi entranti
@@ -298,14 +312,11 @@ void* thread_read(void *arg){
 
         // fprintf(stderr, "Thread %ld waiting for graph\n", pthread_self());
 
-        if (!valid_arc(new->node, curr->j, data->g->N))
-        {
-            free (new);
-            exit(1);
-        }
+        if(!valid_arc(new->node, curr->j, data->g->N))
+            termina("Identificatori dei nodi non validi");
 
-        // Controllo se l'arco è valido e se non è duplicato
-        if(!check_duplicate(data->g->in[curr->j], new->node)){
+        // Controllo se l'arco non è duplicato
+        if(!check_duplicate(data->g->in[curr->j], new->node) && new->node != curr->j){
 
             // Aspetto che il grafo sia disponibile
             sem_wait(data->mutex_graph);
@@ -354,10 +365,8 @@ grafo read_input(const char *filename, const int t, int *arcs_read){
     FILE *file = fopen(filename, "r");
 
     // Controllo se il file è stato aperto correttamente
-    if(file == NULL){
-        fprintf(stderr, "Error opening file.\n");
-        exit(1);
-    }
+    if(file == NULL)
+        termina("Errore nell'apertura del file di input");
 
     // Variabile per leggere la riga
     char *line = NULL;
@@ -408,10 +417,8 @@ grafo read_input(const char *filename, const int t, int *arcs_read){
             sscanf(line, "%d %d %d", &r, &c, &n);
 
             // Controllo se la matrice è quadrata
-            if(r != c){
-                fprintf(stderr, "Error: the matrix is not square.\n");
-                exit(1);
-            }
+            if(r != c)
+                termina("La matrice non è quadrata");
 
             // Assegno il numero di nodi al grafo
             data->g->N = r;
@@ -517,6 +524,7 @@ void signal_handler(const int sig){
 }
 
 // Thread che gestisce il segnale SIGUSR1
+// ReSharper disable once CppParameterMayBeConstPtrOrRef
 void* signal_thread(void *arg)
 {
     // Ottengo i dati passati come argomento
@@ -593,6 +601,7 @@ void* thread_pagerank(void *arg){
                     // Altimenti aggiorno la somma dei pagerank dei nodi senza archi uscenti
                     sem_wait(data->mutex_S);
                     data->S += data->X[new->j];
+                    data->Y[new->j] = 0;
                     sem_post(data->mutex_S);
                 }
                 // Decremento il numero di operazioni da eseguire
@@ -610,7 +619,7 @@ void* thread_pagerank(void *arg){
                 // Calcolo il nuovo pagerank
                 data->Xnew[new->j] = (1-data->d)/data->g->N + data->d/data->g->N*data->S + data->d*sum;
 
-                // fprintf(stderr, "Thread %ld: %d %f\n", pthread_self(), new->j, sum);
+                // fprintf(stderr, "Thread %ld: %f %f %f\n", pthread_self(), (1-data->d)/data->g->N, data->d/data->g->N*data->S, data->d*sum);
 
                 // Decremento il numero di operazioni da eseguire
                 sem_post(data->sem_calc);
