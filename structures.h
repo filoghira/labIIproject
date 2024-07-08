@@ -1,7 +1,11 @@
 #ifndef LABIIPROJECT_STRUCTURES_H
 #define LABIIPROJECT_STRUCTURES_H
 
+
+// ReSharper disable once CppUnusedIncludeDirective
+#include <pthread.h>
 #include <semaphore.h>
+#include <sys/types.h>
 #include <stdbool.h>
 
 struct inmap{
@@ -34,27 +38,33 @@ typedef struct {
     // Buffer per i dati in input
     struct node_read *buffer;
     // Semaforo binario (mutex) per il buffer
-    sem_t *mutex_buffer;
-
-    // Semaforo per gli archi da leggere
-    sem_t *arcs;
+    pthread_mutex_t *m_buffer;
 
     // Grafo
     grafo *g;
-    // Semaforo binario (mutex) per il grafo
-    sem_t *mutex_graph;
 
-    // Numero totale di archi
-    int total_arcs;
-    // Numero massimo di archi
-    int max_arcs;
-
-    // Semaforo binario (mutex) per il numero di archi letti
-    sem_t *mutex_arcs;
-
-    // Flag per terminare i thread
-    bool end;
+    sem_t *sem_read;
+    int count;
+    pthread_mutex_t *m_count;
 } thread_data_read;
+
+struct node {
+    int index; // Indice del nodo
+    struct node *next; // Puntatore al prossimo elemento della lista
+};
+
+typedef struct
+{
+    struct node* buffer; // Puntatore alla testa della lista
+    pthread_mutex_t *m_buffer; // Mutex per la lista
+
+    struct inmap **in; // Array contenente la lista degli archi entranti per ogni nodo
+    int *out; // Array contenente il numero di archi uscenti per ogni nodo
+    int n; // Numero di nodi
+
+    int count; // Numero di liste controllate
+    pthread_mutex_t *m_count; // Mutex per il conteggio
+} thread_duplicates_removal ;
 
 struct node_calc
 {

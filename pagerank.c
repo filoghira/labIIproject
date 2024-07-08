@@ -1,9 +1,9 @@
-#include <stddef.h>
 #include <math.h>
 #include <stdlib.h>
 #include <pthread.h>
-#include "utils.h"
 #include "pagerank.h"
+
+#include <stdio.h>
 
 // Thread che calcola una componente del pagerank
 void* thread_pagerank(void *arg){
@@ -53,7 +53,7 @@ void* thread_pagerank(void *arg){
                 sem_post(data->sem_calc);
                 break;
             // Calcolo il nuovo pagerank
-            case 2:
+            case 2: ;
                 // Calcolo la somma dei pagerank dei nodi entranti
                 double sum = 0;
                 for (const struct inmap *in = data->g->in[new->j]; in != NULL; in = in->next)
@@ -65,12 +65,13 @@ void* thread_pagerank(void *arg){
                 data->Xnew[new->j] = (1-data->d)/data->g->N + data->d/data->g->N*data->S + data->d*sum;
 
                 // fprintf(stderr, "Thread %ld: %f %f %f\n", pthread_self(), (1-data->d)/data->g->N, data->d/data->g->N*data->S, data->d*sum);
+                // fprintf(stderr, "Thread %ld: nuovo %d %f\n", pthread_self(),new->j, data->Xnew[new->j]);
 
                 // Decremento il numero di operazioni da eseguire
                 sem_post(data->sem_calc);
                 break;
                 // Calcolo l'errore
-            case 3:
+            case 3: ;
                 // Calcolo l'errore
                 double temp = fabs(data->Xnew[new->j] - data->X[new->j]);
 
