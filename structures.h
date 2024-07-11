@@ -48,24 +48,6 @@ typedef struct {
     pthread_mutex_t *m_count;
 } thread_data_read;
 
-struct node {
-    int index; // Indice del nodo
-    struct node *next; // Puntatore al prossimo elemento della lista
-};
-
-typedef struct
-{
-    struct node* buffer; // Puntatore alla testa della lista
-    pthread_mutex_t *m_buffer; // Mutex per la lista
-
-    struct inmap **in; // Array contenente la lista degli archi entranti per ogni nodo
-    int *out; // Array contenente il numero di archi uscenti per ogni nodo
-    int n; // Numero di nodi
-
-    int count; // Numero di liste controllate
-    pthread_mutex_t *m_count; // Mutex per il conteggio
-} thread_duplicates_removal ;
-
 struct node_calc
 {
     int op; // Operazione da eseguire
