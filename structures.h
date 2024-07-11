@@ -42,10 +42,12 @@ typedef struct {
 
     // Grafo
     grafo *g;
+    pthread_mutex_t **m_g;
 
-    sem_t *sem_read;
+    pthread_cond_t *full;
+    pthread_cond_t *empty;
     int count;
-    pthread_mutex_t *m_count;
+    bool end;
 } thread_data_read;
 
 struct node_calc

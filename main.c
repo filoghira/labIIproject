@@ -280,6 +280,24 @@ int main(const int argc, char *argv[]){
     // Leggo il file di input e creo il grafo
     grafo g = read_input(data->filename, data->t, &arcs_read);
 
+    FILE *f = fopen("temp.txt", "w");
+
+    fprintf(f, "Matrice di adiacenza:\n");
+    for(int i = 0; i < g.N; i++){
+        fprintf(f, "Node %d: ", i);
+        for(const struct inmap *in = g.in[i]; in != NULL; in = in->next){
+            fprintf(f,"%d ", in->node);
+        }
+        fprintf(f, "\n");
+    }
+
+    fprintf(f, "Nodi uscenti:\n");
+    for(int i = 0; i < g.N; i++){
+        fprintf(f, "Node %d: %d\n", i, g.out[i]);
+    }
+
+    fclose(f);
+
     // gettimeofday(&t1, NULL);
     // timersub(&t1, &t0, &dt);
     // fprintf(stderr, "Time to read input: %ld.%06ld\n", dt.tv_sec, dt.tv_usec);

@@ -25,28 +25,18 @@ void* thread_read(void *arg){
     // ReSharper disable once CppJoinDeclarationAndAssignment
     struct node_read *curr;
 
-    struct inmap **in = malloc(data->g->N*sizeof(struct inmap));
-    int *out = malloc(data->g->N*sizeof(int));
-
-    for (int i = 0; i < data->g->N; i++)
-    {
-        in[i] = NULL;
-        out[i] = 0;
-    }
-
     while(true){
-
-        pthread_mutex_lock(data->m_count);
-        if(data->count == 0)
-        {
-            pthread_mutex_unlock(data->m_count);
-            break;
-        }
-        data->count--;
-        pthread_mutex_unlock(data->m_count);
-
         // Aspetto che il buffer sia disponibile
         pthread_mutex_lock(data->m_buffer);
+        while (data->count == 0)
+        {
+            if (data->end)
+            {
+                pthread_mutex_unlock(data->m_buffer);
+                pthread_exit(NULL);
+            }
+            pthread_cond_wait(data->full, data->m_buffer);
+        }
         // Leggo i dati dal buffer
         // ReSharper disable once CppJoinDeclarationAndAssignment
         curr = data->buffer;
@@ -69,27 +59,37 @@ void* thread_read(void *arg){
         // Controllo se l'arco non è un ciclo
         if(new->node != curr->j){
 
+            pthread_mutex_lock(data->m_g[3/100]);
             // Aggiungo il nuovo arco alla lista degli archi entranti in testa
-            if (in[curr->j] == NULL || in[curr->j]->node >= new->node) {
-                new->next = in[curr->j];
-                in[curr->j] = new;
+            if (data->g->in[curr->j] == NULL || data->g->in[curr->j]->node >= new->node) {
+                new->next = data->g->in[curr->j];
+                data->g->in[curr->j] = new;
             } else {
-                struct inmap* current = in[curr->j];
-                while (current->next != NULL && current->next->node < new->node)
-                {
-                    if (current->node == new->node)
-                    {
-                        free(new);
-                        break;
-                    }
+                struct inmap* current = data->g->in[curr->j];
+                struct inmap* prev = NULL;
+                while (current != NULL && current->node < new->node) {
+                    prev = current;
                     current = current->next;
                 }
-                new->next = current->next;
-                current->next = new;
+                if (current != NULL && current->node == new->node)
+                {
+                    free(new);
+                    break;
+                }
+
+                if (prev != NULL)
+                {
+                    prev->next = new;
+                    new->next = current;
+                } else {
+                    data->g->in[curr->j] = new;
+                    new->next = current;
+                }
             }
             // Aumento il numero di archi uscenti del nodo i
-            out[new->node]++;
+            data->g->out[new->node]++;
 
+            pthread_mutex_unlock(data->m_g[3/100]);
 
             // Incremento il contatore degli archi letti
             count++;
@@ -103,36 +103,9 @@ void* thread_read(void *arg){
         free(curr);
     }
 
-    // Restituisco il grafo temporaneo
-    grafo *g = malloc(sizeof(grafo));
-    g->in = in;
-    g->out = out;
-    pthread_exit(g);
+    pthread_exit(NULL);
 }
 
-// Funzione che unisce due liste di archi entranti già ordinate
-void merge(struct inmap* inmap, struct inmap* inmap1)
-{
-    struct inmap *current = inmap;
-    struct inmap *current1 = inmap1;
-
-    while (current != NULL && current1 != NULL)
-    {
-        if (current1->node < current->node)
-        {
-            struct inmap *new = malloc(sizeof(struct inmap));
-            new->node = current1->node;
-            new->next = current;
-            current = new;
-            current1 = current1->next;
-        } else if (current1->node == current->node)
-        {
-            current1 = current1->next;
-        } else {
-            current = current->next;
-        }
-    }
-}
 // Funzione che legge il file di input e crea il grafo
 grafo read_input(const char *filename, const int t, int *arcs_read){
 
@@ -158,9 +131,6 @@ grafo read_input(const char *filename, const int t, int *arcs_read){
     // Creo i mutex
     pthread_mutex_t m_buffer;
     pthread_mutex_init(&m_buffer, NULL);
-    pthread_mutex_t m_count;
-    pthread_mutex_init(&m_count, NULL);
-
 
     // Alloco memoria per la struct che conterrà i dati per i thread
     thread_data_read *data = malloc(sizeof(thread_data_read));
@@ -169,8 +139,6 @@ grafo read_input(const char *filename, const int t, int *arcs_read){
     data->buffer = NULL;
     data->m_buffer = &m_buffer;
     data->g = &g;
-    data->count = 0;
-    data->m_count = &m_count;
 
     // Creo l'array che conterrà i thread
     pthread_t threads[t];
@@ -195,7 +163,30 @@ grafo read_input(const char *filename, const int t, int *arcs_read){
 
             // Assegno il numero di nodi al grafo
             data->g->N = r;
-            data->count = n;
+            data->g->out = malloc(r*sizeof(int));
+            data->g->in = malloc(r*sizeof(struct inmap*));
+
+            pthread_cond_t empty, full;
+            pthread_cond_init(&full, NULL);
+            pthread_cond_init(&empty, NULL);
+
+            data->full = &full;
+            data->empty = &empty;
+
+            data->count = 0;
+            data->end = false;
+
+            int n_mutex = r / 100+1;
+            data->m_g = malloc(n_mutex*sizeof(pthread_mutex_t*));
+            for (int i = 0; i < n_mutex; i++)
+            {
+                data->m_g[i] = malloc(sizeof(pthread_mutex_t));
+                pthread_mutex_init(data->m_g[i], NULL);
+            }
+
+            // Faccio partire i thread
+            for (int i = 0; i < t; i++)
+                pthread_create(&threads[i], NULL, thread_read, data);
         }else{
             // Leggo gli indici degli archi
             int i, j;
@@ -207,9 +198,14 @@ grafo read_input(const char *filename, const int t, int *arcs_read){
             new->j = j;
             new->next = NULL;
 
+            pthread_mutex_lock(&m_buffer);
+            while (data->count >= 100)
+                pthread_cond_wait(data->empty, &m_buffer);
             new->next = data->buffer;
             // Aggiorno il buffer
             data->buffer = new;
+            pthread_cond_broadcast(data->full);
+            pthread_mutex_unlock(&m_buffer);
         }
 
         // Incremento il contatore delle righe
@@ -218,44 +214,12 @@ grafo read_input(const char *filename, const int t, int *arcs_read){
 
     // Chiudo il file
     fclose(file);
-    gettimeofday(&end, NULL);
-    timersub(&end, &start, &delta3);
 
-    fprintf(stderr, "Tempo caricamento file: %ld.%06ld\n", delta3.tv_sec, delta3.tv_usec);
-
-    gettimeofday(&start, NULL);
-
-    // Faccio partire i thread
-    for (int i = 0; i < t; i++)
-        pthread_create(&threads[i], NULL, thread_read, data);
-
-    // Alloco memoria per gli array
-    data->g->out = (int*)malloc(data->g->N*sizeof(int));
-    data->g->in = (struct inmap**)malloc(data->g->N*sizeof(struct inmap));
-
-    for (int i = 0; i < data->g->N; i++)
-    {
-        data->g->in[i] = NULL;
-        data->g->out[i] = 0;
-    }
+    data->end = true;
 
     // Aspetto che i thread terminino
     for(int i = 0; i < t; i++){
-        // Variabile per il valore di ritorno del thread (numero di archi letti)
-        void *temp_g;
-        pthread_join(threads[i], &temp_g);
-
-        for (int j = 0; j < data->g->N; j++)
-        {
-            // Se la lista degli archi entranti è vuota, copio nella lista finale il risultato del thread
-            if (data->g->in[j] == NULL)
-                data->g->in[j] = ((grafo*)temp_g)->in[j];
-            else if (((grafo*)temp_g)->in[j] != NULL)
-                merge(g.in[j], ((grafo*)temp_g)->in[j]);
-
-            data->g->out[j] += ((grafo*)temp_g)->out[j];
-            *arcs_read += ((grafo*)temp_g)->out[j];
-        }
+        pthread_join(threads[i], NULL);
     }
 
     // Distruzione dei semafori e dei mutex
