@@ -32,6 +32,7 @@ void* thread_read(void *arg){
 
         // Aspetto che il buffer sia disponibile
         pthread_mutex_lock(data->m_buffer);
+
         // Leggo i dati dal buffer
         // ReSharper disable once CppJoinDeclarationAndAssignment
         curr = data->buffer;
@@ -71,6 +72,7 @@ void* thread_read(void *arg){
                     prev = current;
                     current = current->next;
                 }
+
                 if (current != NULL && current->node == new->node)
                 {
                     pthread_mutex_unlock(data->m_g[curr->j/SECTIONS]);
@@ -87,8 +89,6 @@ void* thread_read(void *arg){
                     new->next = current;
                 }
             }
-            new->next = data->g->in[curr->j];
-            data->g->in[curr->j] = new;
             // Aumento il numero di archi uscenti del nodo i
             data->g->out[new->node]++;
 
@@ -196,13 +196,13 @@ grafo read_input(const char *filename, const int t, int *arcs_read){
             struct node_read *new = malloc(sizeof(struct node_read));
             new->i = i;
             new->j = j;
-            new->next = NULL;
+            new->end = false;
 
             pthread_mutex_lock(&m_buffer);
             new->next = data->buffer;
-            new->end = false;
             data->buffer = new;
             pthread_mutex_unlock(&m_buffer);
+
             sem_post(data->sem_buffer);
             n--;
         }
@@ -233,6 +233,7 @@ grafo read_input(const char *filename, const int t, int *arcs_read){
         current->next = new;
     }
     pthread_mutex_unlock(&m_buffer);
+
     sem_post(data->sem_buffer);
 
     // Aspetto che i thread terminino
