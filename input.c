@@ -1,4 +1,3 @@
-#define _GNU_SOURCE
 #include <stddef.h>
 #include <stdlib.h>
 #include <pthread.h>
@@ -8,7 +7,10 @@
 #include "error.h"
 #include "input.h"
 
-struct timeval start, end, delta1, delta2, delta3;
+#define BUFF_SIZE 1024
+#define SECTIONS 100
+
+struct timeval start, end, delta1;
 
 // Lavoratore che elabora gli archi in input
 void* thread_read(void *arg){
@@ -22,24 +24,23 @@ void* thread_read(void *arg){
     struct inmap *new = NULL;
 
     // Struttura per i dati da leggere dal buffer
-    // ReSharper disable once CppJoinDeclarationAndAssignment
+    // ReSharper disable once CppJoinDprint_graph(&g);eclarationAndAssignment
     struct node_read *curr;
 
     while(true){
+        sem_wait(data->sem_buffer);
+
         // Aspetto che il buffer sia disponibile
         pthread_mutex_lock(data->m_buffer);
-        while (data->count == 0)
-        {
-            if (data->end)
-            {
-                pthread_mutex_unlock(data->m_buffer);
-                pthread_exit(NULL);
-            }
-            pthread_cond_wait(data->full, data->m_buffer);
-        }
         // Leggo i dati dal buffer
         // ReSharper disable once CppJoinDeclarationAndAssignment
         curr = data->buffer;
+
+        if (curr->end) {
+            pthread_mutex_unlock(data->m_buffer);
+            sem_post(data->sem_buffer);
+            break;
+        }
         // Rimuovo l'elemento dal buffer
         data->buffer = data->buffer->next;
         // Rilascio il buffer
@@ -58,8 +59,7 @@ void* thread_read(void *arg){
 
         // Controllo se l'arco non è un ciclo
         if(new->node != curr->j){
-
-            pthread_mutex_lock(data->m_g[3/100]);
+            pthread_mutex_lock(data->m_g[curr->j/SECTIONS]);
             // Aggiungo il nuovo arco alla lista degli archi entranti in testa
             if (data->g->in[curr->j] == NULL || data->g->in[curr->j]->node >= new->node) {
                 new->next = data->g->in[curr->j];
@@ -73,8 +73,9 @@ void* thread_read(void *arg){
                 }
                 if (current != NULL && current->node == new->node)
                 {
+                    pthread_mutex_unlock(data->m_g[curr->j/SECTIONS]);
                     free(new);
-                    break;
+                    continue;
                 }
 
                 if (prev != NULL)
@@ -86,10 +87,12 @@ void* thread_read(void *arg){
                     new->next = current;
                 }
             }
+            new->next = data->g->in[curr->j];
+            data->g->in[curr->j] = new;
             // Aumento il numero di archi uscenti del nodo i
             data->g->out[new->node]++;
 
-            pthread_mutex_unlock(data->m_g[3/100]);
+            pthread_mutex_unlock(data->m_g[curr->j/SECTIONS]);
 
             // Incremento il contatore degli archi letti
             count++;
@@ -143,6 +146,8 @@ grafo read_input(const char *filename, const int t, int *arcs_read){
     // Creo l'array che conterrà i thread
     pthread_t threads[t];
 
+    int n;
+
     gettimeofday(&start, NULL);
     // Leggo il file riga per riga
     while(getline(&line, &len, file) != -1){
@@ -154,7 +159,7 @@ grafo read_input(const char *filename, const int t, int *arcs_read){
         // Se è la prima riga
         if(!line_count) {
             // Numero di nodi e archi
-            int r, c, n;
+            int r, c;
             sscanf(line, "%d %d %d", &r, &c, &n);
 
             // Controllo se la matrice è quadrata
@@ -166,17 +171,12 @@ grafo read_input(const char *filename, const int t, int *arcs_read){
             data->g->out = malloc(r*sizeof(int));
             data->g->in = malloc(r*sizeof(struct inmap*));
 
-            pthread_cond_t empty, full;
-            pthread_cond_init(&full, NULL);
-            pthread_cond_init(&empty, NULL);
+            sem_t *sem_buffer = malloc(sizeof(sem_t));
+            sem_init(sem_buffer, 0, 0);
 
-            data->full = &full;
-            data->empty = &empty;
+            data->sem_buffer = sem_buffer;
 
-            data->count = 0;
-            data->end = false;
-
-            int n_mutex = r / 100+1;
+            int n_mutex = r / SECTIONS+1;
             data->m_g = malloc(n_mutex*sizeof(pthread_mutex_t*));
             for (int i = 0; i < n_mutex; i++)
             {
@@ -199,13 +199,12 @@ grafo read_input(const char *filename, const int t, int *arcs_read){
             new->next = NULL;
 
             pthread_mutex_lock(&m_buffer);
-            while (data->count >= 100)
-                pthread_cond_wait(data->empty, &m_buffer);
             new->next = data->buffer;
-            // Aggiorno il buffer
+            new->end = false;
             data->buffer = new;
-            pthread_cond_broadcast(data->full);
             pthread_mutex_unlock(&m_buffer);
+            sem_post(data->sem_buffer);
+            n--;
         }
 
         // Incremento il contatore delle righe
@@ -215,7 +214,26 @@ grafo read_input(const char *filename, const int t, int *arcs_read){
     // Chiudo il file
     fclose(file);
 
-    data->end = true;
+    fprintf(stderr, "Lettura terminata\n");
+
+    pthread_mutex_lock(&m_buffer);
+    struct node_read *new = malloc(sizeof(struct node_read));
+    new->end = true;
+    new->j = -1;
+    new->i = -1;
+    new->next = NULL;
+
+    if (data->buffer == NULL) {
+        data->buffer = new;
+    } else {
+        // Put the end node at the tail of the buffer
+        struct node_read* current = data->buffer;
+        while (current->next != NULL)
+            current = current->next;
+        current->next = new;
+    }
+    pthread_mutex_unlock(&m_buffer);
+    sem_post(data->sem_buffer);
 
     // Aspetto che i thread terminino
     for(int i = 0; i < t; i++){
@@ -224,6 +242,7 @@ grafo read_input(const char *filename, const int t, int *arcs_read){
 
     // Distruzione dei semafori e dei mutex
     pthread_mutex_destroy(&m_buffer);
+    sem_destroy(data->sem_buffer);
 
     // Libero la memoria
     free(line);

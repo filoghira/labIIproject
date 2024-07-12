@@ -29,6 +29,7 @@ typedef struct {
 } input_data;
 
 struct node_read{
+    bool end; // Flag per terminare i thread
     int i; // Indice del primo nodo
     int j; // Indice del secondo nodo
     struct node_read *next; // Puntatore al prossimo elemento della lista
@@ -39,15 +40,13 @@ typedef struct {
     struct node_read *buffer;
     // Semaforo binario (mutex) per il buffer
     pthread_mutex_t *m_buffer;
+    int count;
 
     // Grafo
     grafo *g;
     pthread_mutex_t **m_g;
 
-    pthread_cond_t *full;
-    pthread_cond_t *empty;
-    int count;
-    bool end;
+    sem_t *sem_buffer;
 } thread_data_read;
 
 struct node_calc
