@@ -6,7 +6,7 @@
 
 // Funzione che controlla se un arco è valido
 bool valid_arc(const int i, const int j, const int N){
-    return i >= 0 && i < N && j >= 0 && j < N;
+    return i >= 0 && i < N && j >= 0 && j < N ;
 }
 
 // Funzione che inizializza un array di double con un valore
@@ -41,8 +41,8 @@ void print_graph(const grafo *g){
     fprintf(stderr, "Matrice di adiacenza:\n");
     for(int i = 0; i < g->N; i++){
         fprintf(stderr, "Node %d: ", i);
-        for(const struct inmap *in = g->in[i]; in != NULL; in = in->next){
-            fprintf(stderr,"%d ", in->node);
+        for(int j = 0; j < g->in->size[i]; j++){
+            fprintf(stderr,"%d ", g->in->list[i][j]);
         }
         fprintf(stderr, "\n");
     }
@@ -51,4 +51,9 @@ void print_graph(const grafo *g){
     for(int i = 0; i < g->N; i++){
         fprintf(stderr, "Node %d: %d\n", i, g->out[i]);
     }
+}
+
+int custom_compare(const void *a, const void *b)
+{
+    return (*(int *)a - *(int *)b);
 }

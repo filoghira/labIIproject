@@ -5,12 +5,15 @@
 #include <pthread.h>
 #include <semaphore.h>
 #include <signal.h>
+#include <sys/time.h>
 #include "structures.h"
 #include "parameters.h"
 #include "output.h"
 #include "utils.h"
 #include "input.h"
 #include "pagerank.h"
+
+struct timeval start, end, delta_input, delta_pagerank;
 
 // Variabili per la gestione dei segnali
 pthread_cond_t signal_cond;
@@ -277,33 +280,19 @@ int main(const int argc, char *argv[]){
 
     // gettimeofday(&t0, NULL);
 
+    gettimeofday(&start, NULL);
     // Leggo il file di input e creo il grafo
-    grafo g = read_input(data->filename, data->t, &arcs_read);
-
-    FILE *f = fopen("temp.txt", "w");
-
-    fprintf(f, "Matrice di adiacenza:\n");
-    for(int i = 0; i < g.N; i++){
-        fprintf(f, "Node %d: ", i);
-        for(const struct inmap *in = g.in[i]; in != NULL; in = in->next){
-            fprintf(f,"%d ", in->node);
-        }
-        fprintf(f, "\n");
-    }
-
-    fprintf(f, "Nodi uscenti:\n");
-    for(int i = 0; i < g.N; i++){
-        fprintf(f, "Node %d: %d\n", i, g.out[i]);
-    }
-
-    fclose(f);
+    grafo *g = read_input(data->filename, data->t, &arcs_read);
+    gettimeofday(&end, NULL);
+    timersub(&end, &start, &delta_input);
+    fprintf(stderr, "Time to read input: %ld.%06ld\n", delta_input.tv_sec, delta_input.tv_usec);
 
     // gettimeofday(&t1, NULL);
     // timersub(&t1, &t0, &dt);
     // fprintf(stderr, "Time to read input: %ld.%06ld\n", dt.tv_sec, dt.tv_usec);
 
     // Stampo i risultati iniziali
-    output_print_start(g.N, dead_end(&g), arcs_read);
+    output_print_start(g->N, dead_end(g), arcs_read);
 
     // Variabile per il numero di iterazioni
     int numiter = -1;
@@ -311,27 +300,27 @@ int main(const int argc, char *argv[]){
     // gettimeofday(&t0, NULL);
 
     // Calcolo il pagerank
-    double *res = pagerank(&g, data->d, data->e, data->m, data->t, &numiter);
+    double *res = pagerank(g, data->d, data->e, data->m, data->t, &numiter);
 
     // gettimeofday(&t1, NULL);
     // timersub(&t1, &t0, &dt);
     // fprintf(stderr, "Time to calculate pagerank: %ld.%06ld\n", dt.tv_sec, dt.tv_usec);
 
     // Creo un vettore di struct per tenere traccia del pagerank con l'indice del nodo
-    map* map_res = malloc(g.N * sizeof(map));
+    map* map_res = malloc(g->N * sizeof(map));
     // Inizializzo il vettore
-    for (int i=0; i<g.N; i++)
+    for (int i=0; i<g->N; i++)
     {
         map_res[i].val = res[i];
         map_res[i].index = i;
     }
 
     // Ordino il vettore in ordine decrescente
-    qsort(map_res, g.N, sizeof(map), compare_desc);
+    qsort(map_res, g->N, sizeof(map), compare_desc);
 
     // Calcolo la somma dei pagerank
     double sum = 0;
-    for (int i=0; i<g.N; i++)
+    for (int i=0; i<g->N; i++)
         sum += res[i];
 
     // Stampo i risultati finali
@@ -341,18 +330,14 @@ int main(const int argc, char *argv[]){
     free(map_res);
     free(data);
     free(res);
-    for (int i=0; i<g.N; i++)
-    {
-        struct inmap *curr = g.in[i];
-        while (curr != NULL)
-        {
-            struct inmap *temp = curr;
-            curr = curr->next;
-            free(temp);
-        }
+    for (int i = 0; i < g->N; i++) {
+        free(g->in->list[i]);
     }
-    free(g.in);
-    free(g.out);
+    free(g->in->list);
+    free(g->in->size);
+    free(g->out);
+    free(g->in);
+    free(g);
 
     // Termino il programma
     return 0;

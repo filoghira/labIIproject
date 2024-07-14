@@ -3,6 +3,6 @@
 
 #include "structures.h"
 
-grafo read_input(const char *filename, int t, int *arcs_read);
+grafo* read_input(const char *filename, int t, int *arcs_read);
 
 #endif

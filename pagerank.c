@@ -56,9 +56,10 @@ void* thread_pagerank(void *arg){
             case 2: ;
                 // Calcolo la somma dei pagerank dei nodi entranti
                 double sum = 0;
-                for (const struct inmap *in = data->g->in[new->j]; in != NULL; in = in->next)
+                for (int i = 0; i < data->g->in->size[new->j]; i++)
                 {
-                    sum += data->Y[in->node];
+                    int node = data->g->in->list[new->j][i];
+                    sum += data->Y[node];
                 }
 
                 // Calcolo il nuovo pagerank

@@ -9,14 +9,14 @@
 #include <stdbool.h>
 
 struct inmap{
-    struct inmap *next; // Puntatore al prossimo elemento della lista
-    int node; // Numero del nodo
+    int **list;
+    int *size;
 };
 
 typedef struct {
     int N; // Numero di nodi nel grafo
     int *out; // Array contenente il numero di archi uscenti per ogni nodo
-    struct inmap **in; // Array contenente la lista degli archi entranti per ogni nodo
+    struct inmap *in; // Array contenente la lista degli archi entranti per ogni nodo
 } grafo;
 
 typedef struct {
@@ -28,19 +28,13 @@ typedef struct {
     char *filename; // Nome del file di input
 } input_data;
 
-struct node_read{
-    bool end; // Flag per terminare i thread
-    int i; // Indice del primo nodo
-    int j; // Indice del secondo nodo
-    struct node_read *next; // Puntatore al prossimo elemento della lista
-};
-
 typedef struct {
     // Buffer per i dati in input
-    struct node_read *buffer;
-    // Semaforo binario (mutex) per il buffer
-    pthread_mutex_t *m_buffer;
+    int **buffer;
     int count;
+
+    pthread_mutex_t *m_buffer;
+    pthread_mutex_t *m_end;
 
     // Grafo
     grafo *g;
