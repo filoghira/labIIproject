@@ -42,12 +42,6 @@ void* thread_pagerank(void *arg){
                 {
                     // Aggiorno il vettore Y in posizione j
                     data->Y[new->j] = data->X[new->j] / data->g->out[new->j];
-                } else {
-                    // Altimenti aggiorno la somma dei pagerank dei nodi senza archi uscenti
-                    sem_wait(data->mutex_S);
-                    data->S += data->X[new->j];
-                    data->Y[new->j] = 0;
-                    sem_post(data->mutex_S);
                 }
                 // Decremento il numero di operazioni da eseguire
                 sem_post(data->sem_calc);
@@ -64,10 +58,8 @@ void* thread_pagerank(void *arg){
 
                 // Calcolo il nuovo pagerank
                 data->Xnew[new->j] = (1-data->d)/data->g->N + data->d/data->g->N*data->S + data->d*sum;
-
-                sem_wait(data->mutex_err);
-                data->err += fabs(data->Xnew[new->j] - data->X[new->j]);
-                sem_post(data->mutex_err);
+                // Calcolo l'errore
+                data->err[new->j] = fabs(data->Xnew[new->j] - data->X[new->j]);
 
                 // fprintf(stderr, "Thread %ld: %f %f %f\n", pthread_self(), (1-data->d)/data->g->N, data->d/data->g->N*data->S, data->d*sum);
                 // fprintf(stderr, "Thread %ld: nuovo %d %f\n", pthread_self(),new->j, data->Xnew[new->j]);

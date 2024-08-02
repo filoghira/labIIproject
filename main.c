@@ -82,6 +82,9 @@ double* pagerank(grafo *g, double d, double eps, int maxiter, int taux, int* num
     // Inizializzo l'array a 0
     set_array(Y, g->N, 0.0);
 
+    double *err = malloc(sizeof(double) * g->N);
+    set_array(err, g->N, 0.0);
+
     // Creo i thread
     pthread_t threads[taux];
 
@@ -89,16 +92,10 @@ double* pagerank(grafo *g, double d, double eps, int maxiter, int taux, int* num
     sem_t sem_calc;
     sem_init(&sem_calc, 0, 0);
 
-    sem_t mutex_err;
-    sem_init(&mutex_err, 0, 1);
-
     sem_t sem_buffer;
     sem_init(&sem_buffer, 0, 0);
     sem_t mutex_buffer;
     sem_init(&mutex_buffer, 0, 1);
-
-    sem_t mutex_S;
-    sem_init(&mutex_S, 0, 1);
 
     sem_t mutex_iter;
     sem_init(&mutex_iter, 0, 1);
@@ -114,9 +111,7 @@ double* pagerank(grafo *g, double d, double eps, int maxiter, int taux, int* num
     data.Y = Y;
     data.Xnew = Xnew;
     data.S = 0;
-    data.mutex_S = &mutex_S;
-    data.err = 0;
-    data.mutex_err = &mutex_err;
+    data.err = err;
     data.g = g;
     data.d = d;
     data.current_iter = 0;
@@ -163,6 +158,10 @@ double* pagerank(grafo *g, double d, double eps, int maxiter, int taux, int* num
         for (int i=0; i<g->N; i++)
             sem_wait(&sem_calc);
 
+        for (int i=0; i<g->N; i++)
+            if (g->out[i] == 0)
+                data.S += data.X[i];
+
         // Sezione per il calcolo del nuovo pagerank
         for (int j=0; j<g->N; j++)
         {
@@ -189,12 +188,17 @@ double* pagerank(grafo *g, double d, double eps, int maxiter, int taux, int* num
         data.X = data.Xnew;
         data.Xnew = temp;
 
+        double err_sum = 0;
+        for (int i=0; i<g->N; i++)
+            err_sum += data.err[i];
+
         // Controllo se l'errore è minore della soglia, se sì esco
-        if (data.err < eps) break;
+        if (err_sum < eps) break;
 
         // Initializzo l'errore e la somma a 0
-        data.err = 0;
         data.S = 0;
+        set_array(data.Y, g->N, 0.0);
+        set_array(err, g->N, 0.0);
     }
 
     // Avviso i thread che devono terminare
@@ -221,10 +225,8 @@ double* pagerank(grafo *g, double d, double eps, int maxiter, int taux, int* num
     free(data.Xnew);
 
     sem_destroy(&sem_calc);
-    sem_destroy(&mutex_err);
     sem_destroy(&sem_buffer);
     sem_destroy(&mutex_buffer);
-    sem_destroy(&mutex_S);
     sem_destroy(&mutex_iter);
 
     // Restituisco il vettore dei pagerank

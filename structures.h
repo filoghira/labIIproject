@@ -74,13 +74,9 @@ typedef struct
 
     // Somma dei pagerank dei nodi senza archi uscenti
     double S;
-    // Mutex per la somma
-    sem_t *mutex_S;
 
     // Errore ad ogni iterazione
-    double err;
-    // Mutex per l'errore
-    sem_t *mutex_err;
+    double *err;
 
     // Grafo
     grafo *g;
