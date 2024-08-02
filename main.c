@@ -140,9 +140,6 @@ double* pagerank(grafo *g, double d, double eps, int maxiter, int taux, int* num
         // Rilascio la variabile
         sem_post(data.mutex_iter);
 
-        // Preparo il nuovo nodo per il buffer
-        struct node_calc *temp_buffer = NULL;
-
         // fprintf(stderr, "Iteration %d\n", iter);
 
         // Sezione per la preparazione della somma dei pagerank e del vettore Y
@@ -154,12 +151,9 @@ double* pagerank(grafo *g, double d, double eps, int maxiter, int taux, int* num
             S->j = j;
 
             // Aggiungo il nodo al buffer
-            S->next = temp_buffer;
-            temp_buffer = S;
+            S->next = data.buffer;
+            data.buffer = S;
         }
-
-        // Aggiorno il buffer
-        data.buffer = temp_buffer;
 
         // Sblocco i thread
         for (int i=0; i<g->N; i++)
@@ -168,9 +162,6 @@ double* pagerank(grafo *g, double d, double eps, int maxiter, int taux, int* num
         // Aspetto che i thread terminino
         for (int i=0; i<g->N; i++)
             sem_wait(&sem_calc);
-
-        // Resetto il buffer
-        temp_buffer = NULL;
 
         // Sezione per il calcolo del nuovo pagerank
         for (int j=0; j<g->N; j++)
@@ -181,12 +172,9 @@ double* pagerank(grafo *g, double d, double eps, int maxiter, int taux, int* num
             X_buff->j = j;
 
             // Aggiungo il nodo al buffer
-            X_buff->next = temp_buffer;
-            temp_buffer = X_buff;
+            X_buff->next = data.buffer;
+            data.buffer = X_buff;
         }
-
-        // Aggiorno il buffer
-        data.buffer = temp_buffer;
 
         // Sblocco i thread
         for (int i=0; i<g->N; i++)
