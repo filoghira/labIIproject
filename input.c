@@ -117,7 +117,7 @@ grafo* read_input(const char *filename, const int t, int *arcs_read){
 
             for (int i = 0; i < n_mutex; i++)
             {
-                pthread_mutex_t *mutex = (pthread_mutex_t *)malloc(sizeof(pthread_mutex_t));
+                pthread_mutex_t *mutex = malloc(sizeof(pthread_mutex_t));
                 pthread_mutex_init(mutex, NULL);
                 args->m_g[i] = mutex;
             }

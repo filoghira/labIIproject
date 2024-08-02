@@ -196,32 +196,10 @@ double* pagerank(grafo *g, double d, double eps, int maxiter, int taux, int* num
         for (int i=0; i<g->N; i++)
             sem_wait(&sem_calc);
 
-        // Resetto il buffer
-        temp_buffer = NULL;
-
-        // Sezione per il calcolo dell'errore
-        for (int j=0; j<g->N; j++)
-        {
-            // Preparo il nodo per il buffer
-            struct node_calc *E = malloc(sizeof(struct node_calc));
-            E->op = 3;
-            E->j = j;
-
-            // Aggiungo il nodo al buffer
-            E->next = temp_buffer;
-            temp_buffer = E;
-        }
-
-        // Aggiorno il buffer
-        data.buffer = temp_buffer;
-
-        // Sblocco i thread
-        for (int i=0; i<g->N; i++)
-            sem_post(&sem_buffer);
-
-        // Aspetto che i thread terminino
-        for (int i=0; i<g->N; i++)
-            sem_wait(&sem_calc);
+        // Aggiorno il vettore dei pagerank invertendo i puntatori
+        double *temp = data.X;
+        data.X = data.Xnew;
+        data.Xnew = temp;
 
         // Controllo se l'errore è minore della soglia, se sì esco
         if (data.err < eps) break;
@@ -297,14 +275,14 @@ int main(const int argc, char *argv[]){
     // Variabile per il numero di iterazioni
     int numiter = -1;
 
-    // gettimeofday(&t0, NULL);
+    gettimeofday(&start, NULL);
 
     // Calcolo il pagerank
     double *res = pagerank(g, data->d, data->e, data->m, data->t, &numiter);
 
-    // gettimeofday(&t1, NULL);
-    // timersub(&t1, &t0, &dt);
-    // fprintf(stderr, "Time to calculate pagerank: %ld.%06ld\n", dt.tv_sec, dt.tv_usec);
+    gettimeofday(&end, NULL);
+    timersub(&end, &start, &delta_pagerank);
+    fprintf(stderr, "Time to calculate pagerank: %ld.%06ld\n", delta_pagerank.tv_sec, delta_pagerank.tv_usec);
 
     // Creo un vettore di struct per tenere traccia del pagerank con l'indice del nodo
     map* map_res = malloc(g->N * sizeof(map));

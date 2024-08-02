@@ -65,26 +65,12 @@ void* thread_pagerank(void *arg){
                 // Calcolo il nuovo pagerank
                 data->Xnew[new->j] = (1-data->d)/data->g->N + data->d/data->g->N*data->S + data->d*sum;
 
-                // fprintf(stderr, "Thread %ld: %f %f %f\n", pthread_self(), (1-data->d)/data->g->N, data->d/data->g->N*data->S, data->d*sum);
-                // fprintf(stderr, "Thread %ld: nuovo %d %f\n", pthread_self(),new->j, data->Xnew[new->j]);
-
-                // Decremento il numero di operazioni da eseguire
-                sem_post(data->sem_calc);
-                break;
-                // Calcolo l'errore
-            case 3: ;
-                // Calcolo l'errore
-                double temp = fabs(data->Xnew[new->j] - data->X[new->j]);
-
-                // Attendo che l'errore sia disponibile
                 sem_wait(data->mutex_err);
-                // Aggiorno l'errore
-                data->err += temp;
-                // Rilascio l'errore
+                data->err += fabs(data->Xnew[new->j] - data->X[new->j]);
                 sem_post(data->mutex_err);
 
-                // Aggiorno il nuovo pagerank
-                data->X[new->j] = data->Xnew[new->j];
+                // fprintf(stderr, "Thread %ld: %f %f %f\n", pthread_self(), (1-data->d)/data->g->N, data->d/data->g->N*data->S, data->d*sum);
+                // fprintf(stderr, "Thread %ld: nuovo %d %f\n", pthread_self(),new->j, data->Xnew[new->j]);
 
                 // Decremento il numero di operazioni da eseguire
                 sem_post(data->sem_calc);
