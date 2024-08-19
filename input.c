@@ -1,3 +1,4 @@
+#define _DEFAULT_SOURCE
 #include <stddef.h>
 #include <stdlib.h>
 #include <pthread.h>
@@ -12,7 +13,7 @@
 struct timeval start1, end1, delta_load, delta_elaborate, delta_duplicates;
 
 void* thread_read(void *arg){
-    thread_data_read *args = (thread_data_read *)arg;
+    thread_data_read *args = arg;
 
     int nodes = 0;
 
@@ -81,7 +82,7 @@ grafo* read_input(const char *filename, const int t, int *arcs_read){
     size_t len = 0;
     int line_counter = 0;
 
-    int r, c, n, n_mutex;
+    int r, c, n, n_mutex = 0;
 
     gettimeofday(&start1, NULL);
     while (getline(&line, &len, f) != -1)

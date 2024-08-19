@@ -1,3 +1,5 @@
+#define _DEFAULT_SOURCE
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -14,6 +16,7 @@
 #include "pagerank.h"
 
 struct timeval start, end, delta_input, delta_pagerank;
+struct timeval start_1, end_1, delta_phase_1, temp1, start_2, end_2, delta_phase_2, temp2;
 
 // Variabili per la gestione dei segnali
 pthread_cond_t signal_cond;
@@ -92,21 +95,30 @@ double* pagerank(grafo *g, double d, double eps, int maxiter, int taux, int* num
     sem_t sem_calc;
     sem_init(&sem_calc, 0, 0);
 
-    sem_t sem_buffer;
-    sem_init(&sem_buffer, 0, 0);
+    sem_t sem_full;
+    sem_init(&sem_full, 0, 0);
+
+    sem_t sem_empty;
+    sem_init(&sem_empty, 0, BUFFER_SIZE);
+
     sem_t mutex_buffer;
     sem_init(&mutex_buffer, 0, 1);
 
     sem_t mutex_iter;
     sem_init(&mutex_iter, 0, 1);
 
+    int batch_number = ceil((double)g->N / BATCH_SIZE);
+
     // Creo la struttura per i dati dei thread
     thread_data_calc data;
     data.sem_calc = &sem_calc;
     data.end = false;
-    data.buffer = NULL;
+    data.buffer = malloc(BUFFER_SIZE * sizeof(int*));
     data.mutex_buffer = &mutex_buffer;
-    data.sem_buffer = &sem_buffer;
+    data.sem_full = &sem_full;
+    data.sem_empty = &sem_empty;
+    data.in = 0;
+    data.out = 0;
     data.X = X;
     data.Y = Y;
     data.Xnew = Xnew;
@@ -137,50 +149,58 @@ double* pagerank(grafo *g, double d, double eps, int maxiter, int taux, int* num
 
         // fprintf(stderr, "Iteration %d\n", iter);
 
-        // Sezione per la preparazione della somma dei pagerank e del vettore Y
-        for (int j=0; j<g->N; j++)
-        {
-            // Preparo il nodo per il buffer
-            struct node_calc *S = malloc(sizeof(struct node_calc));
-            S->op = 1;
-            S->j = j;
+        gettimeofday(&start_1, NULL);
+        data.op = 1;
 
-            // Aggiungo il nodo al buffer
-            S->next = data.buffer;
-            data.buffer = S;
+        for (int i=0; i<batch_number; i++)
+        {
+            sem_wait(&sem_empty);
+            sem_wait(&mutex_buffer);
+
+            int* batch = malloc(2 * sizeof(int));
+            batch[0] = i * BATCH_SIZE;
+            batch[1] = (i+1) * BATCH_SIZE > g->N ? g->N : (i+1) * BATCH_SIZE;
+            data.buffer[data.in] = batch;
+            data.in = (data.in + 1) % BUFFER_SIZE;
+
+            sem_post(&mutex_buffer);
+            sem_post(&sem_full);
         }
 
-        // Sblocco i thread
-        for (int i=0; i<g->N; i++)
-            sem_post(&sem_buffer);
-
-        // Aspetto che i thread terminino
-        for (int i=0; i<g->N; i++)
+        for (int i=0; i<batch_number; i++)
             sem_wait(&sem_calc);
 
         for (int i=0; i<g->N; i++)
             if (g->out[i] == 0)
                 data.S += data.X[i];
 
-        // Sezione per il calcolo del nuovo pagerank
-        for (int j=0; j<g->N; j++)
-        {
-            // Preparo il nodo per il buffer
-            struct node_calc *X_buff = malloc(sizeof(struct node_calc));
-            X_buff->op = 2;
-            X_buff->j = j;
+        gettimeofday(&end_1, NULL);
+        timersub(&end_1, &start_1, &temp1);
+        // Aggiungo il tempo di calcolo della fase 1
+        timeradd(&delta_phase_1, &temp1, &delta_phase_1);
 
-            // Aggiungo il nodo al buffer
-            X_buff->next = data.buffer;
-            data.buffer = X_buff;
+        gettimeofday(&start_2, NULL);
+
+        data.op = 2;
+        data.out = 0;
+        data.in = 0;
+
+        for (int i=0; i<batch_number; i++)
+        {
+            sem_wait(&sem_empty);
+            sem_wait(&mutex_buffer);
+
+            int* batch = malloc(2 * sizeof(int));
+            batch[0] = i * BATCH_SIZE;
+            batch[1] = (i+1) * BATCH_SIZE > g->N ? g->N : (i+1) * BATCH_SIZE;
+            data.buffer[data.in] = batch;
+            data.in = (data.in + 1) % BUFFER_SIZE;
+
+            sem_post(&mutex_buffer);
+            sem_post(&sem_full);
         }
 
-        // Sblocco i thread
-        for (int i=0; i<g->N; i++)
-            sem_post(&sem_buffer);
-
-        // Aspetto che i thread terminino
-        for (int i=0; i<g->N; i++)
+        for (int i=0; i<batch_number; i++)
             sem_wait(&sem_calc);
 
         // Aggiorno il vettore dei pagerank invertendo i puntatori
@@ -191,6 +211,11 @@ double* pagerank(grafo *g, double d, double eps, int maxiter, int taux, int* num
         double err_sum = 0;
         for (int i=0; i<g->N; i++)
             err_sum += data.err[i];
+
+        gettimeofday(&end_2, NULL);
+        timersub(&end_2, &start_2, &temp2);
+        // Aggiungo il tempo di calcolo della fase 2
+        timeradd(&delta_phase_2, &temp2, &delta_phase_2);
 
         // Controllo se l'errore è minore della soglia, se sì esco
         if (err_sum < eps) break;
@@ -204,9 +229,7 @@ double* pagerank(grafo *g, double d, double eps, int maxiter, int taux, int* num
     // Avviso i thread che devono terminare
     data.end = true;
 
-    // Sblocco i thread
-    for (int i = 0; i < taux; i++)
-        sem_post(data.sem_buffer);
+    sem_post(&sem_full);
 
     // Aspetto che i thread terminino
     for (int i = 0; i < taux; i++)
@@ -223,11 +246,16 @@ double* pagerank(grafo *g, double d, double eps, int maxiter, int taux, int* num
     free(data.buffer);
     free(data.Y);
     free(data.Xnew);
+    free(data.err);
 
     sem_destroy(&sem_calc);
-    sem_destroy(&sem_buffer);
+    sem_destroy(&sem_full);
+    sem_destroy(&sem_empty);
     sem_destroy(&mutex_buffer);
     sem_destroy(&mutex_iter);
+
+    fprintf(stderr, "Time to calculate phase 1: %ld.%06ld\n", delta_phase_1.tv_sec, delta_phase_1.tv_usec);
+    fprintf(stderr, "Time to calculate phase 2: %ld.%06ld\n", delta_phase_2.tv_sec, delta_phase_2.tv_usec);
 
     // Restituisco il vettore dei pagerank
     return X;
@@ -297,7 +325,6 @@ int main(const int argc, char *argv[]){
     // Libero la memoria
     free(map_res);
     free(data);
-    free(res);
     for (int i = 0; i < g->N; i++) {
         free(g->in->list[i]);
     }

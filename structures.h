@@ -8,6 +8,9 @@
 #include <sys/types.h>
 #include <stdbool.h>
 
+#define BUFFER_SIZE 1000
+#define BATCH_SIZE 1000
+
 struct inmap{
     int **list;
     int *size;
@@ -43,13 +46,6 @@ typedef struct {
     sem_t *sem_buffer;
 } thread_data_read;
 
-struct node_calc
-{
-    int op; // Operazione da eseguire
-    int j; // Indice del valore nel vettore pagerank
-    struct node_calc *next; // Puntatore al prossimo elemento della lista
-};
-
 typedef struct
 {
     // Semaforo per tenere traccia delle operazioni da eseguire
@@ -58,12 +54,18 @@ typedef struct
     // Flag per terminare i thread
     bool end;
 
+    int op;
+
     // Buffer per i dati da elaborare
-    struct node_calc *buffer;
+    int **buffer;
     // Mutex per il buffer
     sem_t *mutex_buffer;
     // Semaforo per il buffer
-    sem_t *sem_buffer;
+    sem_t *sem_full;
+    sem_t *sem_empty;
+
+    int in;
+    int out;
 
     // Vettore dei pagerank
     double *X;
