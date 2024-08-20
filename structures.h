@@ -33,17 +33,21 @@ typedef struct {
 
 typedef struct {
     // Buffer per i dati in input
-    int **buffer;
+    void ***buffer;
     int count;
 
+    bool end;
+
     pthread_mutex_t *m_buffer;
-    pthread_mutex_t *m_end;
+    sem_t* sem_empty;
+    sem_t* sem_full;
+
+    int in;
+    int out;
 
     // Grafo
     grafo *g;
     pthread_mutex_t **m_g;
-
-    sem_t *sem_buffer;
 } thread_data_read;
 
 typedef struct
