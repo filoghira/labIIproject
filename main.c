@@ -2,7 +2,6 @@
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
 #include <stdbool.h>
 #include <pthread.h>
 #include <semaphore.h>
@@ -107,7 +106,7 @@ double* pagerank(grafo *g, double d, double eps, int maxiter, int taux, int* num
     sem_t mutex_iter;
     sem_init(&mutex_iter, 0, 1);
 
-    int batch_number = ceil((double)g->N / BATCH_SIZE);
+    const int batch_number = ceil((double)g->N / BATCH_SIZE);
 
     // Creo la struttura per i dati dei thread
     thread_data_calc data;
@@ -202,11 +201,6 @@ double* pagerank(grafo *g, double d, double eps, int maxiter, int taux, int* num
 
         for (int i=0; i<batch_number; i++)
             sem_wait(&sem_calc);
-
-        // Aggiorno il vettore dei pagerank invertendo i puntatori
-        double *temp = data.X;
-        data.X = data.Xnew;
-        data.Xnew = temp;
 
         double err_sum = 0;
         for (int i=0; i<g->N; i++)
@@ -323,8 +317,8 @@ int main(const int argc, char *argv[]){
     output_print_end(numiter, sum, data->k, map_res);
 
     // Libero la memoria
+    free(res);
     free(map_res);
-    free(data);
     for (int i = 0; i < g->N; i++) {
         free(g->in->list[i]);
     }
@@ -333,6 +327,7 @@ int main(const int argc, char *argv[]){
     free(g->out);
     free(g->in);
     free(g);
+    free(data);
 
     // Termino il programma
     return 0;

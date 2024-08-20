@@ -8,8 +8,8 @@
 #include <sys/types.h>
 #include <stdbool.h>
 
-#define BUFFER_SIZE 1000
-#define BATCH_SIZE 1000
+#define BUFFER_SIZE 32
+#define BATCH_SIZE 600
 
 struct inmap{
     int **list;

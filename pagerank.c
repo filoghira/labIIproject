@@ -64,6 +64,7 @@ void* thread_pagerank(void *arg){
                     data->Xnew[j] = (1-data->d)/data->g->N + data->d/data->g->N*data->S + data->d*sum;
                     // Calcolo l'errore
                     data->err[j] = fabs(data->Xnew[j] - data->X[j]);
+                    data->X[j] = data->Xnew[j];
                 }
                 break;
             default:
