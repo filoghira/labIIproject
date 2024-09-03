@@ -25,7 +25,7 @@ void* thread_pagerank(void *arg){
         int low_limit = data->buffer[data->out][0];
         int high_limit = data->buffer[data->out][1];
         free(data->buffer[data->out]);
-        data->out = (data->out + 1) % BUFFER_SIZE;
+        data->out = (data->out + 1) % data->buffer_size;
 
         sem_post(data->mutex_buffer);
         sem_post(data->sem_empty);

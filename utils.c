@@ -4,6 +4,8 @@
 
 #include <stdio.h>
 
+#define BUF_SIZE 65536
+
 // Funzione che controlla se un arco è valido
 bool valid_arc(const int i, const int j, const int N){
     return i >= 0 && i < N && j >= 0 && j < N ;
@@ -56,4 +58,25 @@ void print_graph(const grafo *g){
 int custom_compare(const void *a, const void *b)
 {
     return (*(int *)a - *(int *)b);
+}
+
+int count_lines(FILE* file)
+{
+    int counter = 0;
+    for(;;)
+    {
+        char buf[BUF_SIZE];
+        const size_t res = fread(buf, 1, BUF_SIZE, file);
+        if (ferror(file))
+            return -1;
+
+        for(int i = 0; i < res; i++)
+            if (buf[i] == '\n')
+                counter++;
+
+        if (feof(file))
+            break;
+    }
+
+    return counter;
 }

@@ -8,9 +8,6 @@
 #include <sys/types.h>
 #include <stdbool.h>
 
-#define BUFFER_SIZE 32
-#define BATCH_SIZE 600
-
 struct inmap{
     int **list;
     int *size;
@@ -34,7 +31,9 @@ typedef struct {
 typedef struct {
     // Buffer per i dati in input
     void ***buffer;
-    int count;
+
+    int buffer_size;
+    int batch_size;
 
     bool end;
 
@@ -45,15 +44,21 @@ typedef struct {
     int in;
     int out;
 
-    // Grafo
-    grafo *g;
-    pthread_mutex_t **m_g;
+    int N;
 } thread_data_read;
+
+typedef struct
+{
+    grafo *g;
+    int nodes;
+} read_return;
 
 typedef struct
 {
     // Semaforo per tenere traccia delle operazioni da eseguire
     sem_t *sem_calc;
+
+    int buffer_size;
 
     // Flag per terminare i thread
     bool end;

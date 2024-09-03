@@ -69,6 +69,10 @@ void* signal_thread(void *arg)
 
 // Funzione che calcola il pagerank
 double* pagerank(grafo *g, double d, double eps, int maxiter, int taux, int* numiter){
+
+    const int buffer_size = 32;
+    const int batch_size = 600;
+
     // Array per i pagerank
     double *X = malloc(g->N * sizeof(double));
     // Inizializzo l'array a 1/N
@@ -98,7 +102,7 @@ double* pagerank(grafo *g, double d, double eps, int maxiter, int taux, int* num
     sem_init(&sem_full, 0, 0);
 
     sem_t sem_empty;
-    sem_init(&sem_empty, 0, BUFFER_SIZE);
+    sem_init(&sem_empty, 0, buffer_size);
 
     sem_t mutex_buffer;
     sem_init(&mutex_buffer, 0, 1);
@@ -106,13 +110,13 @@ double* pagerank(grafo *g, double d, double eps, int maxiter, int taux, int* num
     sem_t mutex_iter;
     sem_init(&mutex_iter, 0, 1);
 
-    const int batch_number = ceil((double)g->N / BATCH_SIZE);
+    const int batch_number = ceil((double)g->N / batch_size);
 
     // Creo la struttura per i dati dei thread
     thread_data_calc data;
     data.sem_calc = &sem_calc;
     data.end = false;
-    data.buffer = malloc(BUFFER_SIZE * sizeof(int*));
+    data.buffer = malloc(buffer_size * sizeof(int*));
     data.mutex_buffer = &mutex_buffer;
     data.sem_full = &sem_full;
     data.sem_empty = &sem_empty;
@@ -127,6 +131,7 @@ double* pagerank(grafo *g, double d, double eps, int maxiter, int taux, int* num
     data.d = d;
     data.current_iter = 0;
     data.mutex_iter = &mutex_iter;
+    data.buffer_size = buffer_size;
 
     // Creo i thread
     for (int i = 0; i < taux; i++)
@@ -157,10 +162,10 @@ double* pagerank(grafo *g, double d, double eps, int maxiter, int taux, int* num
             sem_wait(&mutex_buffer);
 
             int* batch = malloc(2 * sizeof(int));
-            batch[0] = i * BATCH_SIZE;
-            batch[1] = (i+1) * BATCH_SIZE > g->N ? g->N : (i+1) * BATCH_SIZE;
+            batch[0] = i * batch_size;
+            batch[1] = (i+1) * batch_size > g->N ? g->N : (i+1) * batch_size;
             data.buffer[data.in] = batch;
-            data.in = (data.in + 1) % BUFFER_SIZE;
+            data.in = (data.in + 1) % buffer_size;
 
             sem_post(&mutex_buffer);
             sem_post(&sem_full);
@@ -190,10 +195,10 @@ double* pagerank(grafo *g, double d, double eps, int maxiter, int taux, int* num
             sem_wait(&mutex_buffer);
 
             int* batch = malloc(2 * sizeof(int));
-            batch[0] = i * BATCH_SIZE;
-            batch[1] = (i+1) * BATCH_SIZE > g->N ? g->N : (i+1) * BATCH_SIZE;
+            batch[0] = i * batch_size;
+            batch[1] = (i+1) * batch_size > g->N ? g->N : (i+1) * batch_size;
             data.buffer[data.in] = batch;
-            data.in = (data.in + 1) % BUFFER_SIZE;
+            data.in = (data.in + 1) % buffer_size;
 
             sem_post(&mutex_buffer);
             sem_post(&sem_full);
