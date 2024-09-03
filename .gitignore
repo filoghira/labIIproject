@@ -11,3 +11,5 @@ CMakeLists.txt
 ghira.zip
 
 CMakeFiles/
+
+*.log

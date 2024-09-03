@@ -155,7 +155,7 @@ grafo* read_input(const char *filename, const int t, int *arcs_read){
             i--;
             j--;
 
-            batch[batch_counter] = malloc(sizeof(char) * 2);
+            batch[batch_counter] = malloc(sizeof(int) * 2);
             batch[batch_counter][0] = i;
             batch[batch_counter][1] = j;
 
