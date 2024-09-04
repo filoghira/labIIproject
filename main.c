@@ -147,8 +147,6 @@ double* pagerank(grafo *g, double d, double eps, int maxiter, int taux, int* num
     pthread_t signal_thread_id;
     pthread_create(&signal_thread_id, NULL, signal_thread, &data);
 
-    
-
     // Finché non ho raggiunto il numero massimo di iterazioni
     while (data.current_iter < maxiter)
     {
@@ -212,7 +210,7 @@ double* pagerank(grafo *g, double d, double eps, int maxiter, int taux, int* num
         data.out = 0;
         data.in = 0;
 
-        // Per ogni batch
+        // Riempo il batch analogamente al passo precedente
         for (int i=0; i<batch_number; i++)
         {
             sem_wait(&sem_empty);
@@ -228,16 +226,17 @@ double* pagerank(grafo *g, double d, double eps, int maxiter, int taux, int* num
             sem_post(&sem_full);
         }
 
+        // Aspetto che tutti i batch siano stati calcolati
         for (int i=0; i<batch_number; i++)
             sem_wait(&sem_calc);
 
+        // Calcolo l'errore
         double err_sum = 0;
         for (int i=0; i<g->N; i++)
             err_sum += data.err[i];
 
         gettimeofday(&end_2, NULL);
         timersub(&end_2, &start_2, &temp2);
-        // Aggiungo il tempo di calcolo della fase 2
         timeradd(&delta_phase_2, &temp2, &delta_phase_2);
 
         // Controllo se l'errore è minore della soglia, se sì esco
@@ -252,6 +251,7 @@ double* pagerank(grafo *g, double d, double eps, int maxiter, int taux, int* num
     // Avviso i thread che devono terminare
     data.end = true;
 
+    // Sblocco i thread
     sem_post(&sem_full);
 
     // Aspetto che i thread terminino
@@ -260,6 +260,7 @@ double* pagerank(grafo *g, double d, double eps, int maxiter, int taux, int* num
 
     // Sblocco il thread che gestisce i segnali
     pthread_cond_signal(&signal_cond);
+    // Aspetto che il thread termini
     pthread_join(signal_thread_id, NULL);
 
     // Restituisco il numero di iterazioni
@@ -271,9 +272,12 @@ double* pagerank(grafo *g, double d, double eps, int maxiter, int taux, int* num
     free(data.Xnew);
     free(data.err);
 
+    // Distruggo i semafori
     sem_destroy(&sem_calc);
     sem_destroy(&sem_full);
     sem_destroy(&sem_empty);
+
+    // Distruggo i mutex
     sem_destroy(&mutex_buffer);
     sem_destroy(&mutex_iter);
 
@@ -288,6 +292,7 @@ int main(const int argc, char *argv[]){
     // Inizializzo la variabile per la gestione dei segnali
     pthread_cond_init(&signal_cond, NULL);
     pthread_mutex_init(&signal_mutex, NULL);
+
     // Imposto il gestore dei segnali
     signal(SIGUSR1, signal_handler);
 
@@ -297,18 +302,14 @@ int main(const int argc, char *argv[]){
     // Variabile per il numero di archi letti
     int arcs_read = 0;
 
-    // gettimeofday(&t0, NULL);
-
     gettimeofday(&start, NULL);
+
     // Leggo il file di input e creo il grafo
     grafo *g = read_input(data->filename, data->t, &arcs_read);
+
     gettimeofday(&end, NULL);
     timersub(&end, &start, &delta_input);
     fprintf(stderr, "Time to read input: %ld.%06ld\n", delta_input.tv_sec, delta_input.tv_usec);
-
-    // gettimeofday(&t1, NULL);
-    // timersub(&t1, &t0, &dt);
-    // fprintf(stderr, "Time to read input: %ld.%06ld\n", dt.tv_sec, dt.tv_usec);
 
     // Stampo i risultati iniziali
     output_print_start(g->N, dead_end(g), arcs_read);
@@ -327,6 +328,7 @@ int main(const int argc, char *argv[]){
 
     // Creo un vettore di struct per tenere traccia del pagerank con l'indice del nodo
     map* map_res = malloc(g->N * sizeof(map));
+
     // Inizializzo il vettore
     for (int i=0; i<g->N; i++)
     {

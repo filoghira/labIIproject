@@ -29,6 +29,7 @@ int compare_desc(const void *a, const void *b) {
     return 0;
 }
 
+// Funzione di confronto per l'ordinamento del vettore degli int
 int custom_compare(const void *a, const void *b)
 {
     return (*(int *)a - *(int *)b);

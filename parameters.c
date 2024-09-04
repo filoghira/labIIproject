@@ -20,8 +20,6 @@ input_data* input(const int argc, char *argv[]){
     data->t = 1;
     data->filename = NULL;
 
-    // fprintf(stderr,"Reading options\n");
-
     int c;
     // Leggo le opzioni passate come argomenti da riga di comando
     while((c = getopt(argc, argv, "k:m:d:e:t:")) != -1){
