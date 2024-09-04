@@ -3,7 +3,7 @@
 // Funzione che stampa i risultati iniziali dopo la lettura del file di input
 void output_print_start(const int n, const int dead_end, const int arcs){
     printf("Number of nodes: %d\n", n);
-    printf("Number of dead-ends nodes: %d\n", dead_end);
+    printf("Number of dead-end nodes: %d\n", dead_end);
     printf("Number of valid arcs: %d\n", arcs);
 }
 
@@ -20,5 +20,5 @@ void output_print_end(const int n, const double sum, const int k, const map *pag
     }
 
     for(int i = 0; i < k; i++)
-        printf("%d %lf\n", pagerank[i].index, pagerank[i].val);
+        printf("  %d %lf\n", pagerank[i].index, pagerank[i].val);
 }
