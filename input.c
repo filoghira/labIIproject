@@ -120,7 +120,7 @@ grafo* read_input(const char *filename, const int t, int *arcs_read){
     // Dimensione del buffer
     const int buffer_size = 100;
     // Dimensione del batch di archi
-    const int batch_size = 1000;
+    const int batch_size = 10000;
 
     // Inizializzo la struttura
     args->buffer = NULL;
@@ -349,46 +349,19 @@ grafo* read_input(const char *filename, const int t, int *arcs_read){
                     int *temp = (int *)malloc((g->in->size[j] + ret->g->in->size[j]) * sizeof(int));
                     int index = 0;
 
-                    int *a = g->in->list[j];
-                    int *b = ret->g->in->list[j];
-
-                    int a_index = 0;
-                    int b_index = 0;
-
-                    // Merge degli array ordinati
-                    while (a_index < g->in->size[j] && b_index < ret->g->in->size[j])
+                    int k=0;
+                    while (k < g->in->size[j])
                     {
-                        if (a[a_index] < b[b_index])
-                        {
-                            temp[index] = a[a_index];
-                            a_index++;
-                        }
-                        else if (a[a_index] > b[b_index])
-                        {
-                            temp[index] = b[b_index];
-                            b_index++;
-                        }
-                        else
-                        {
-                            temp[index] = a[a_index];
-                            a_index++;
-                            b_index++;
-                        }
+                        temp[index] = g->in->list[j][k];
                         index++;
+                        k++;
                     }
-
-                    while (a_index < g->in->size[j])
+                    k=0;
+                    while (k < ret->g->in->size[j])
                     {
-                        temp[index] = a[a_index];
-                        a_index++;
+                        temp[index] = ret->g->in->list[j][k];
                         index++;
-                    }
-
-                    while (b_index < ret->g->in->size[j])
-                    {
-                        temp[index] = b[b_index];
-                        b_index++;
-                        index++;
+                        k++;
                     }
 
                     // Dealloco l'array vecchio
