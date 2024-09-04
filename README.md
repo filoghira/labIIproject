@@ -3,29 +3,24 @@
 
 ## Parallelizzazione del calcolo di Pagerank
 
-Ho definito un thread singolo ([pagerank.c](pagerank.c)) che gestisce i 4 tipi di operazione:
+Ho definito un thread singolo ([pagerank.c](pagerank.c)) che gestisce due fasi:
 
-1. Calcolo della somma S all'iterazione t
-   - Calcolo del vettore Y all'iterazione t
-2. Calcolo della componente j del vettore newX all'iterazione t
-3. Calcolo dell'errore all'iterazione t
+1. Calcolo della somma parziale **S** e del vettore **Y** all'iterazione t
+2. Calcolo della componente j del vettore **newX** (compreso di copia di **newX** in **X**) e dell'errore parziale 
+all'iterazione t
 
-Si noti che la prima e la seconda operazione sono eseguibili contemporaneamente.
+Il MainThread ad ogni iterazione carica il buffer con dei _batch_, ovvero dei range di nodi che spettano da calcolare
+ad ogni thread. Il buffer è gestito tramite produttori e consumatori su un buffer di dimensione limitata.
+Mentre il buffer viene caricato i thread iniziano ad elaborare i dati. Finito il calcolo per la prima fase da parte di
+tutti i thread, si calcola la somma totale **S**. 
+Successivamente si fa la stessa cosa per la fase 2.
 
-Ho quindi definito una lista di [nodi](structures.h) che contengono il codice dell'operazione (da 1 a 3), l'indice j 
-della componente su cui eventualmente devo lavorare (solo per op. 2) e il puntatore al nodo successivo.
+## Parallelizzazione della lettura del file di input
+Analogamente al calcolo, con la differenza che il batch non è un semplice range ma contiene un insieme di archi
+da elaborare. Inoltre per evitare racing contition, ogni thread ha un proprio grafo in cui inserisce gli archi;
+al termine di ogni thread, eseguo un merge ordinato di tutti i grafi.
+Infine la eseguo la rimozione dei duplicati (che è il motivo per cui eseguo gli inserimenti ordinati).
 
-Il thread principale ad ogni iterazione, si compone di tre sezioni, ognuna funzionante allo stesso modo:
-sfrutta un buffer (lista) al quale aggiunge le varie componenti da elaborare per la fase corrente. Dopo aver riempito il
-buffer fa partire i thread, incrementando il semaforo sem_buffer N volte. Si mette poi in attesa che il lavoro sia 
-completato (esegue una post sul semaforo sem_calc N volte, che a sua volta è incrementato dal thread appena finisce una
-unità di lavoro).
-
-La scelta di caricare il buffer anticipatamente e poi di far partire i calcoli è stata effettuate perché altrimenti 
-sarebbe stata necessaria una sincronizzazione aggiuntiva che avrebbe notevolmente rallentato i thread.
-
-Alla fine di ogni iterazione controllo se l'errore minimo è stato superato. In quel caso esco dal ciclo, sblocco i
-thread e attendo che terminino.
 ## Parallelizzazione del Client-Server
 ### Server
 Il server crea un Pool di thread. Ogni volta che viene accettata una connessione, ne fa partire uno passandogliela.
