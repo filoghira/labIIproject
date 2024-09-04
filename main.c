@@ -13,6 +13,7 @@
 #include "input.h"
 #include "pagerank.h"
 
+// Variabili per il calcolo del tempo
 struct timeval start, end, delta_input, delta_pagerank;
 struct timeval start_1, end_1, delta_phase_1, temp1, start_2, end_2, delta_phase_2, temp2;
 
@@ -48,6 +49,7 @@ void* signal_thread(void *arg)
         // Stampo le informazioni
         fprintf(stderr, "Current iteration: %d\n", data->current_iter);
 
+        // Trovo il pagerank massimo corrente
         double max = data->X[0];
         int max_index = 0;
         for (int i=1; i<data->g->N; i++)
@@ -69,7 +71,9 @@ void* signal_thread(void *arg)
 // Funzione che calcola il pagerank
 double* pagerank(grafo *g, double d, double eps, int maxiter, int taux, int* numiter){
 
+    // Dimensione del buffer
     const int buffer_size = 32;
+    // Dimensione del batch
     const int batch_size = 600;
 
     // Array per i pagerank
@@ -87,10 +91,12 @@ double* pagerank(grafo *g, double d, double eps, int maxiter, int taux, int* num
     // Inizializzo l'array a 0
     set_array(Y, g->N, 0.0);
 
+    // Array per l'errore
     double *err = malloc(sizeof(double) * g->N);
+    // Inizializzo l'array a 0
     set_array(err, g->N, 0.0);
 
-    // Creo i thread
+    // Array per i thread
     pthread_t threads[taux];
 
     // Creo e inizializzo i semafori
@@ -109,6 +115,7 @@ double* pagerank(grafo *g, double d, double eps, int maxiter, int taux, int* num
     sem_t mutex_iter;
     sem_init(&mutex_iter, 0, 1);
 
+    // Calcolo il numero di batch necessari
     const int batch_number = ceil((double)g->N / batch_size);
 
     // Creo la struttura per i dati dei thread
@@ -132,13 +139,15 @@ double* pagerank(grafo *g, double d, double eps, int maxiter, int taux, int* num
     data.mutex_iter = &mutex_iter;
     data.buffer_size = buffer_size;
 
-    // Creo i thread
+    // Faccio partire i thread
     for (int i = 0; i < taux; i++)
         pthread_create(&threads[i], NULL, thread_pagerank, &data);
 
     // Creo il thread per gestire i segnali
     pthread_t signal_thread_id;
     pthread_create(&signal_thread_id, NULL, signal_thread, &data);
+
+    
 
     // Finché non ho raggiunto il numero massimo di iterazioni
     while (data.current_iter < maxiter)
@@ -150,44 +159,60 @@ double* pagerank(grafo *g, double d, double eps, int maxiter, int taux, int* num
         // Rilascio la variabile
         sem_post(data.mutex_iter);
 
-        // fprintf(stderr, "Iteration %d\n", iter);
-
         gettimeofday(&start_1, NULL);
+
+        // Fase 1
         data.op = 1;
 
+        // Per ogni batch
         for (int i=0; i<batch_number; i++)
         {
+            // Aspetto che ci sia spazio nel buffer
             sem_wait(&sem_empty);
+            // Lock del buffer
             sem_wait(&mutex_buffer);
 
+            // Alloco la memoria per il batch
             int* batch = malloc(2 * sizeof(int));
+
+            // Imposto l'indice di inizio e fine del batch
             batch[0] = i * batch_size;
             batch[1] = (i+1) * batch_size > g->N ? g->N : (i+1) * batch_size;
+
+            // Inserisco il batch nel buffer
             data.buffer[data.in] = batch;
+
+            // Incremento l'indice di inserimento
             data.in = (data.in + 1) % buffer_size;
 
+            // Sblocco il buffer
             sem_post(&mutex_buffer);
+            // Segnalo che c'è un batch da calcolare
             sem_post(&sem_full);
         }
 
+        // Aspetto che tutti i batch siano stati calcolati
         for (int i=0; i<batch_number; i++)
             sem_wait(&sem_calc);
 
+        // Calcolo l'array S
         for (int i=0; i<g->N; i++)
             if (g->out[i] == 0)
                 data.S += data.X[i];
 
         gettimeofday(&end_1, NULL);
         timersub(&end_1, &start_1, &temp1);
-        // Aggiungo il tempo di calcolo della fase 1
         timeradd(&delta_phase_1, &temp1, &delta_phase_1);
-
         gettimeofday(&start_2, NULL);
 
+        // Fase 2
         data.op = 2;
+
+        // Resetto gli indici del buffer
         data.out = 0;
         data.in = 0;
 
+        // Per ogni batch
         for (int i=0; i<batch_number; i++)
         {
             sem_wait(&sem_empty);
