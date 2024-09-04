@@ -49,7 +49,7 @@ void* thread_pagerank(void *arg){
                 }
                 break;
             // Calcolo il nuovo pagerank
-            case 2: ;
+            case 2:
                 for (int j=low_limit; j<high_limit; j++)
                 {
                     // Calcolo la somma dei pagerank dei nodi entranti
