@@ -85,6 +85,9 @@ def connection_handler(conn: socket):
         log.info(f"Archi scartati: {a - count}")
         log.info(f"Archi validi: {count}")
 
+        # Torno all'inizio del file
+        f.seek(0)
+
         # Eseguo il pagerank
         res = subprocess.run(["./pagerank", f.name], capture_output=True)
 
