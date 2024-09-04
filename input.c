@@ -1,4 +1,3 @@
-#define _DEFAULT_SOURCE
 #include <stdlib.h>
 #include <pthread.h>
 #include <stdio.h>
@@ -225,6 +224,8 @@ grafo* read_input(const char *filename, const int t, int *arcs_read){
 
         if (ret->nodes == 0)
         {
+            free(ret->g->in->list);
+            free(ret->g->in->size);
             free(ret->g->in);
             free(ret->g->out);
             free(ret->g);
@@ -295,6 +296,11 @@ grafo* read_input(const char *filename, const int t, int *arcs_read){
             }
         }
 
+        free(ret->g->in->list);
+        free(ret->g->in->size);
+        free(ret->g->in);
+        free(ret->g->out);
+        free(ret->g);
         free(ret);
     }
 
