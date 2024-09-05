@@ -101,6 +101,15 @@ void* thread_read(void *arg){
         free(batch);
     }
 
+    // Ordino gli archi entranti
+    for (int i = 0; i < g->N; i++)
+    {
+        if (g->in->size[i] > 0)
+        {
+            qsort(g->in->list[i], g->in->size[i], sizeof(int), custom_compare);
+        }
+    }
+
     // Creo la struttura di ritorno
     read_return *ret = malloc(sizeof(read_return));
     // Grafo ottenuto
@@ -110,6 +119,29 @@ void* thread_read(void *arg){
 
     // Termino il thread
     pthread_exit(ret);
+}
+
+void merge_sorted_arrays(int* a, int size_a, int* b, int size_b, int* result) {
+    int i = 0, j = 0, k = 0;
+
+    // Confronta gli elementi dei due array e inserisci il più piccolo nel risultato
+    while (i < size_a && j < size_b) {
+        if (a[i] < b[j]) {
+            result[k++] = a[i++];
+        } else {
+            result[k++] = b[j++];
+        }
+    }
+
+    // Inserisci i rimanenti elementi dell'array 'a' (se ce ne sono)
+    while (i < size_a) {
+        result[k++] = a[i++];
+    }
+
+    // Inserisci i rimanenti elementi dell'array 'b' (se ce ne sono)
+    while (j < size_b) {
+        result[k++] = b[j++];
+    }
 }
 
 // Funzione che legge il file di input e crea il grafo finale
@@ -347,28 +379,9 @@ grafo* read_input(const char *filename, const int t, int *arcs_read){
                 {
                     // Alloco un array temporaneo
                     int *temp = (int *)malloc((g->in->size[j] + ret->g->in->size[j]) * sizeof(int));
-                    int index = 0;
 
-                    int min_size = g->in->size[j] < ret->g->in->size[j] ? g->in->size[j] : ret->g->in->size[j];
-
-                    while (index < min_size)
-                    {
-                        temp[2*index] = g->in->list[j][index];
-                        temp[2*index + 1] = ret->g->in->list[j][index];
-                        index++;
-                    }
-
-                    while (index < g->in->size[j])
-                    {
-                        temp[min_size+index] = g->in->list[j][index];
-                        index++;
-                    }
-
-                    while (index < ret->g->in->size[j])
-                    {
-                        temp[min_size+index] = ret->g->in->list[j][index];
-                        index++;
-                    }
+                    // Merge ordinato
+                    merge_sorted_arrays(g->in->list[j], g->in->size[j], ret->g->in->list[j], ret->g->in->size[j], temp);
 
                     // Dealloco l'array vecchio
                     free(g->in->list[j]);
@@ -406,6 +419,7 @@ grafo* read_input(const char *filename, const int t, int *arcs_read){
     gettimeofday(&start1, NULL);
 
     // Rimozione dei duplicati
+    int block_size = 1000;
 
     // Per ogni nodo del grafo
     for (int i = 0; i < g->N; i++)
@@ -420,8 +434,6 @@ grafo* read_input(const char *filename, const int t, int *arcs_read){
 
             // Array per gli archi entranti
             int *a = g->in->list[i];
-            // Ordino l'array
-            qsort(a, g->in->size[i], sizeof(int), custom_compare);
 
             // Per ogni arco entrante
             for (int j = 0; j < g->in->size[i]; j++)
