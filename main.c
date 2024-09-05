@@ -139,6 +139,7 @@ double* pagerank(grafo *g, double d, double eps, int maxiter, int taux, int* num
     data.current_iter = 0;
     data.mutex_iter = &mutex_iter;
     data.buffer_size = buffer_size;
+    data.first_term = (1-d)/g->N;
 
     // Faccio partire i thread
     for (int i = 0; i < taux; i++)

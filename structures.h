@@ -116,6 +116,7 @@ typedef struct
 
     // Damping factor
     double d;
+    double first_term;
 
     // Numero di iterazione corrente
     int current_iter;
