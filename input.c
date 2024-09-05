@@ -353,20 +353,20 @@ grafo* read_input(const char *filename, const int t, int *arcs_read){
 
                     while (index < min_size)
                     {
-                        temp[index] = g->in->list[j][index];
-                        temp[index + 1] = ret->g->in->list[j][index];
-                        index += 2;
+                        temp[2*index] = g->in->list[j][index];
+                        temp[2*index + 1] = ret->g->in->list[j][index];
+                        index++;
                     }
 
                     while (index < g->in->size[j])
                     {
-                        temp[index] = g->in->list[j][index];
+                        temp[min_size+index] = g->in->list[j][index];
                         index++;
                     }
 
                     while (index < ret->g->in->size[j])
                     {
-                        temp[index] = ret->g->in->list[j][index];
+                        temp[min_size+index] = ret->g->in->list[j][index];
                         index++;
                     }
 
@@ -374,7 +374,7 @@ grafo* read_input(const char *filename, const int t, int *arcs_read){
                     free(g->in->list[j]);
                     // Assegno l'array temporaneo all'array del grafo finale
                     g->in->list[j] = temp;
-                    g->in->size[j] = index;
+                    g->in->size[j] = g->in->size[j] + ret->g->in->size[j];
                 }
             }
         }
