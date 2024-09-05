@@ -18,8 +18,8 @@ Successivamente si fa la stessa cosa per la fase 2.
 ## Parallelizzazione della lettura del file di input
 Analogamente al calcolo, con la differenza che il batch non è un semplice range ma contiene un insieme di archi
 da elaborare. Inoltre per evitare racing contition, ogni thread ha un proprio grafo in cui inserisce gli archi;
-al termine di ogni thread, eseguo un merge ordinato di tutti i grafi.
-Infine la eseguo la rimozione dei duplicati (che è il motivo per cui eseguo gli inserimenti ordinati).
+al termine di ogni thread, eseguo un merge di tutti i grafi.
+Infine la eseguo la rimozione dei duplicati tramite un ordinamento ed uno scorrimento.
 
 ## Parallelizzazione del Client-Server
 ### Server

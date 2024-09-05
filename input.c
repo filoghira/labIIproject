@@ -349,19 +349,25 @@ grafo* read_input(const char *filename, const int t, int *arcs_read){
                     int *temp = (int *)malloc((g->in->size[j] + ret->g->in->size[j]) * sizeof(int));
                     int index = 0;
 
-                    int k=0;
-                    while (k < g->in->size[j])
+                    int min_size = g->in->size[j] < ret->g->in->size[j] ? g->in->size[j] : ret->g->in->size[j];
+
+                    while (index < min_size)
                     {
-                        temp[index] = g->in->list[j][k];
-                        index++;
-                        k++;
+                        temp[index] = g->in->list[j][index];
+                        temp[index + 1] = ret->g->in->list[j][index];
+                        index += 2;
                     }
-                    k=0;
-                    while (k < ret->g->in->size[j])
+
+                    while (index < g->in->size[j])
                     {
-                        temp[index] = ret->g->in->list[j][k];
+                        temp[index] = g->in->list[j][index];
                         index++;
-                        k++;
+                    }
+
+                    while (index < ret->g->in->size[j])
+                    {
+                        temp[index] = ret->g->in->list[j][index];
+                        index++;
                     }
 
                     // Dealloco l'array vecchio
