@@ -42,6 +42,8 @@ typedef struct {
 
     // Flag per terminare i thread
     bool end;
+    int total_batches;
+    int read_batches;
 
     // Mutex per il buffer
     pthread_mutex_t *m_buffer;

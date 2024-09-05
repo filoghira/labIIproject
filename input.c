@@ -40,12 +40,8 @@ void* thread_read(void *arg){
         // Lock del buffer
         pthread_mutex_lock(args->m_buffer);
 
-        // Ottengo la quantità di elementi nel buffer
-        int buffer_content = 0;
-        sem_getvalue(args->sem_full, &buffer_content);
-
         // Se non ci sono più elementi da leggere e la fine è segnalata
-        if(args->end && buffer_content == 0){
+        if(args->end && args->read_batches == args->total_batches){
             // Rilascio il lock sul buffer
             pthread_mutex_unlock(args->m_buffer);
             // Faccio partire un altro thread
@@ -58,6 +54,8 @@ void* thread_read(void *arg){
         void** batch = args->buffer[args->out];
         // Aggiorno la posizione di lettura
         args->out = (args->out + 1) % args->buffer_size;
+
+        args->read_batches++;
 
         // Segnalazione che c'è uno spazio vuoto nel buffer
         sem_post(args->sem_empty);
@@ -121,7 +119,7 @@ void* thread_read(void *arg){
     pthread_exit(ret);
 }
 
-void merge_sorted_arrays(int* a, int size_a, int* b, int size_b, int* result) {
+void merge_sorted_arrays(const int* a, int size_a, const int* b, int size_b, int* result) {
     int i = 0, j = 0, k = 0;
 
     // Confronta gli elementi dei due array e inserisci il più piccolo nel risultato
@@ -171,6 +169,8 @@ grafo* read_input(const char *filename, const int t, int *arcs_read){
     args->m_buffer = &m_buffer;
 
     args->end = false;
+    args->total_batches = 0;
+    args->read_batches = 0;
 
     args->buffer_size = buffer_size;
     args->batch_size = batch_size;
@@ -279,6 +279,8 @@ grafo* read_input(const char *filename, const int t, int *arcs_read){
                 // Inizializzo il nuovo batch
                 for (int k=0; k<batch_size; k++)
                     batch[k] = NULL;
+
+                args->total_batches++;
             }
         }
         // Incremento il contatore delle righe lette
@@ -303,6 +305,8 @@ grafo* read_input(const char *filename, const int t, int *arcs_read){
         sem_post(&sem_full);
         // Rilascio il lock sul buffer
         pthread_mutex_unlock(&m_buffer);
+
+        args->total_batches++;
     }
 
     gettimeofday(&end1, NULL);
