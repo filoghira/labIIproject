@@ -22,17 +22,13 @@ void* thread_read(void *arg){
     grafo *g = malloc(sizeof(grafo));
     g->N = args->N;
     g->in = (struct inmap *)malloc(sizeof(struct inmap));
-    g->out = (int *)malloc(g->N * sizeof(int));
-    g->in->list = (int **)malloc(args->N * sizeof(int*));
-    g->in->size = (int *)malloc(args->N * sizeof(int));
+    g->out = (int *)calloc(g->N, sizeof(int));
+    g->in->list = (int **)calloc(args->N, sizeof(int*));
+    g->in->size = (int *)calloc(args->N, sizeof(int));
 
-    // Inizializzo il grafo
-    for (int i = 0; i < args->N; i++)
-    {
-        g->in->list[i] = NULL;
-        g->in->size[i] = 0;
-        g->out[i] = 0;
-    }
+    void** batch = NULL;
+    int i = -1;
+    int j = -1;
 
     while(true){
         // Aspetto che ci sia un elemento nel buffer
@@ -51,7 +47,7 @@ void* thread_read(void *arg){
         }
 
         // Prelevo il batch di archi dal buffer
-        void** batch = args->buffer[args->out];
+        batch = args->buffer[args->out];
         // Aggiorno la posizione di lettura
         args->out = (args->out + 1) % args->buffer_size;
 
@@ -70,8 +66,8 @@ void* thread_read(void *arg){
                 break;
 
             // Prelevo i nodi dell'arco
-            const int i = ((int*)batch[k])[0];
-            const int j = ((int*)batch[k])[1];
+            i = ((int*)batch[k])[0];
+            j = ((int*)batch[k])[1];
 
             // Se i nodi sono validi
             if (i >= 0 && i < g->N && j >= 0 && j < g->N && i != j)
@@ -81,11 +77,11 @@ void* thread_read(void *arg){
                 if (g->in->size[j] % INCREMENT == 0)
                     g->in->list[j] = (int *)realloc(g->in->list[j], (g->in->size[j]+INCREMENT) * sizeof(int));
 
+                // Aggiungo l'arco entrante
+                g->in->list[j][g->in->size[j]] = i;
+
                 // Incremento il numero di archi entranti
                 g->in->size[j]++;
-
-                // Aggiungo l'arco entrante
-                g->in->list[j][g->in->size[j] - 1] = i;
 
                 // Incremento il numero di nodi letti
                 nodes++;
@@ -100,10 +96,11 @@ void* thread_read(void *arg){
     }
 
     // Ordino gli archi entranti
-    for (int i = 0; i < g->N; i++)
+    for (i = 0; i < g->N; i++)
     {
         if (g->in->size[i] > 0)
         {
+            g->in->list[i] = (int *)realloc(g->in->list[i], g->in->size[i] * sizeof(int));
             qsort(g->in->list[i], g->in->size[i], sizeof(int), custom_compare);
         }
     }
@@ -119,7 +116,7 @@ void* thread_read(void *arg){
     pthread_exit(ret);
 }
 
-void merge_sorted_arrays(const int* a, int size_a, const int* b, int size_b, int* result) {
+void merge_sorted_arrays(const int* a, const int size_a, const int* b, const int size_b, int* result) {
     int i = 0, j = 0, k = 0;
 
     // Confronta gli elementi dei due array e inserisci il più piccolo nel risultato
@@ -356,6 +353,8 @@ grafo* read_input(const char *filename, const int t, int *arcs_read){
         // Se il grafo è vuoto, lo dealloco e passo al prossimo thread
         if (ret->nodes == 0)
         {
+            for (int j = 0; j < ret->g->N; j++)
+                free(ret->g->in->list[j]);
             free(ret->g->in->list);
             free(ret->g->in->size);
             free(ret->g->in);
@@ -382,7 +381,7 @@ grafo* read_input(const char *filename, const int t, int *arcs_read){
                 else
                 {
                     // Alloco un array temporaneo
-                    int *temp = (int *)malloc((g->in->size[j] + ret->g->in->size[j]) * sizeof(int));
+                    int *temp = malloc((g->in->size[j] + ret->g->in->size[j]) * sizeof(int));
 
                     // Merge ordinato
                     merge_sorted_arrays(g->in->list[j], g->in->size[j], ret->g->in->list[j], ret->g->in->size[j], temp);
@@ -392,11 +391,12 @@ grafo* read_input(const char *filename, const int t, int *arcs_read){
                     // Assegno l'array temporaneo all'array del grafo finale
                     g->in->list[j] = temp;
                     g->in->size[j] = g->in->size[j] + ret->g->in->size[j];
+
+                    free(ret->g->in->list[j]);
                 }
             }
         }
 
-        // Dealloco il grafo parziale
         free(ret->g->in->list);
         free(ret->g->in->size);
         free(ret->g->in);
@@ -437,7 +437,7 @@ grafo* read_input(const char *filename, const int t, int *arcs_read){
             int index = 0;
 
             // Array per gli archi entranti
-            int *a = g->in->list[i];
+            const int *a = g->in->list[i];
 
             // Per ogni arco entrante
             for (int j = 0; j < g->in->size[i]; j++)

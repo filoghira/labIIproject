@@ -5,31 +5,33 @@
 
 #include <stdio.h>
 
-double Y_sum(int j, const double *Y, int **list, const int *size){
+// Somma tutte le componenti di Y
+double Y_sum(const int j, const double *Y, int **list, const int *size){
     double sum = 0;
     for (int i = 0; i < size[j]; i++)
     {
-        int node = list[j][i];
+        const int node = list[j][i];
         sum += Y[node];
     }
     return sum;
 }
 
-void Y_calc(int low_limit, int high_limit, const int* out, const double *X, double *Y) {
+// Caclola tutte le componenti di Y
+void Y_calc(const int low_limit, const int high_limit, const int* out, const double *X, double *Y) {
     for (int j=low_limit; j<high_limit; j++)
-    {
+        // Se non è dead end
         if (out[j] != 0)
-        {
             // Aggiorno il vettore Y in posizione j
             Y[j] = X[j] / out[j];
-        }
-    }
 }
 
 // Thread che calcola una componente del pagerank
 void* thread_pagerank(void *arg){
     // Ottengo i dati passati come argomento
     thread_data_calc *data = arg;
+
+    int low_limit = -1;
+    int high_limit = -1;
 
     while (true)
     {
@@ -49,8 +51,8 @@ void* thread_pagerank(void *arg){
         }
 
         // Estraggo i range del batch
-        int low_limit = data->buffer[data->out][0];
-        int high_limit = data->buffer[data->out][1];
+        low_limit = data->buffer[data->out][0];
+        high_limit = data->buffer[data->out][1];
 
         // Libero la memoria occupata dal batch
         free(data->buffer[data->out]);

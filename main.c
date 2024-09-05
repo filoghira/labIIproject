@@ -167,10 +167,6 @@ double* pagerank(grafo *g, double d, double eps, int maxiter, int taux, int* num
         // Per ogni batch
         for (int i=0; i<batch_number; i++)
         {
-            // Aspetto che ci sia spazio nel buffer
-            sem_wait(&sem_empty);
-            // Lock del buffer
-            sem_wait(&mutex_buffer);
 
             // Alloco la memoria per il batch
             int* batch = malloc(2 * sizeof(int));
@@ -178,6 +174,11 @@ double* pagerank(grafo *g, double d, double eps, int maxiter, int taux, int* num
             // Imposto l'indice di inizio e fine del batch
             batch[0] = i * batch_size;
             batch[1] = (i+1) * batch_size > g->N ? g->N : (i+1) * batch_size;
+
+            // Aspetto che ci sia spazio nel buffer
+            sem_wait(&sem_empty);
+            // Lock del buffer
+            sem_wait(&mutex_buffer);
 
             // Inserisco il batch nel buffer
             data.buffer[data.in] = batch;
@@ -215,12 +216,13 @@ double* pagerank(grafo *g, double d, double eps, int maxiter, int taux, int* num
         // Riempo il batch analogamente al passo precedente
         for (int i=0; i<batch_number; i++)
         {
-            sem_wait(&sem_empty);
-            sem_wait(&mutex_buffer);
-
             int* batch = malloc(2 * sizeof(int));
             batch[0] = i * batch_size;
             batch[1] = (i+1) * batch_size > g->N ? g->N : (i+1) * batch_size;
+
+            sem_wait(&sem_empty);
+            sem_wait(&mutex_buffer);
+
             data.buffer[data.in] = batch;
             data.in = (data.in + 1) % buffer_size;
 
@@ -246,7 +248,7 @@ double* pagerank(grafo *g, double d, double eps, int maxiter, int taux, int* num
 
         // Initializzo l'errore e la somma a 0
         data.S = 0;
-        set_array(data.Y, g->N, 0.0);
+        set_array(Y, g->N, 0.0);
         set_array(err, g->N, 0.0);
     }
 
@@ -352,9 +354,8 @@ int main(const int argc, char *argv[]){
     // Libero la memoria
     free(res);
     free(map_res);
-    for (int i = 0; i < g->N; i++) {
+    for (int i = 0; i < g->N; i++)
         free(g->in->list[i]);
-    }
     free(g->in->list);
     free(g->in->size);
     free(g->out);
