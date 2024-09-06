@@ -422,9 +422,6 @@ grafo* read_input(const char *filename, const int t, int *arcs_read){
 
     gettimeofday(&start1, NULL);
 
-    // Rimozione dei duplicati
-    int block_size = 1000;
-
     // Per ogni nodo del grafo
     for (int i = 0; i < g->N; i++)
     {
