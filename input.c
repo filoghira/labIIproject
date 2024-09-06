@@ -100,7 +100,8 @@ void* thread_read(void *arg){
     {
         if (g->in->size[i] > 0)
         {
-            g->in->list[i] = (int *)realloc(g->in->list[i], g->in->size[i] * sizeof(int));
+            // Nota: migliora il consumo di memoria, ma rallenta l'esecuzione
+            // g->in->list[i] = (int *)realloc(g->in->list[i], g->in->size[i] * sizeof(int));
             qsort(g->in->list[i], g->in->size[i], sizeof(int), custom_compare);
         }
     }
